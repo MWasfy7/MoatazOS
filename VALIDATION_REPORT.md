@@ -79,6 +79,12 @@ The opportunity page imported React `use()` and accepted `params` as a Promise w
 - Vitest config now resolves `__dirname` via `fileURLToPath(import.meta.url)` instead of relying on a CommonJS global in an ES module config.
 - Drawer click event now has an explicit React `MouseEvent<HTMLDivElement>` type.
 
+### 4. Next.js dependency pin was below the patched 14.x security level
+
+Claude pinned Next `14.2.15`. Current Next.js vendor guidance for the 14.x line identifies `14.2.35` as the patched release for the December 2025 React Server Components denial-of-service issue.
+
+**Fix:** raised the M0 pin to `next@14.2.35` while retaining the existing Next 14 / React 18 architecture. This dependency change is **not runtime-validated in this sandbox** because npm installation is still blocked. Also note that Next 14 is now outside Next.js' current supported-major policy, so this is a minimum security remediation for the M0 branch, not a recommendation to ship Next 14 to production indefinitely.
+
 ## Additional validation completed without external dependencies
 
 - Pure domain TypeScript compile (decision model + fixtures): **PASS**.

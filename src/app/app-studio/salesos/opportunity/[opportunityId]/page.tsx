@@ -1,14 +1,14 @@
 "use client";
 
-import { use, useState } from "react";
+import { useState } from "react";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import { getOpportunity, getSnapshot, OPPORTUNITIES } from "@/lib/fixtures";
 import { OpportunityList } from "@/components/salesos/OpportunityList";
 import { DecisionCard } from "@/components/salesos/DecisionCard/DecisionCard";
 import { SnapshotComparisonView } from "@/components/salesos/DecisionCard/SnapshotComparison/SnapshotComparisonView";
 
-export default function OpportunityPage({ params }: { params: Promise<{ opportunityId: string }> }) {
-  const { opportunityId } = use(params);
+export default function OpportunityPage({ params }: { params: { opportunityId: string } }) {
+  const { opportunityId } = params;
   const { dict } = useLocale();
   const [comparing, setComparing] = useState(false);
 

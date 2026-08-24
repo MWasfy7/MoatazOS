@@ -152,4 +152,20 @@ export const en = {
   },
 } as const;
 
-export type Dictionary = typeof en;
+type DeepWiden<T> =
+  T extends string ? string :
+  T extends number ? number :
+  T extends boolean ? boolean :
+  T extends readonly (infer U)[] ? readonly DeepWiden<U>[] :
+  T extends object ? { [K in keyof T]: DeepWiden<T[K]> } :
+  T;
+
+/**
+ * Preserve the dictionary key structure while widening translated leaf values.
+ * Using `typeof en` directly would freeze every leaf to its English literal and
+ * make a valid Arabic dictionary fail TypeScript assignment.
+ */
+export type Dictionary = DeepWiden<typeof en> & {
+  locale: "en" | "ar";
+  dir: "ltr" | "rtl";
+};

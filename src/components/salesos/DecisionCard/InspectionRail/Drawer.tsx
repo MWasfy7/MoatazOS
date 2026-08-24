@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 export interface DrawerProps {
@@ -39,7 +39,7 @@ export function Drawer({ title, open, onClose, children }: DrawerProps) {
         aria-modal="true"
         aria-label={title}
         className="h-full w-full max-w-md overflow-y-auto border-s border-neutral-800 bg-neutral-950 p-5 shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
+        onClick={(event: MouseEvent<HTMLDivElement>) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
           <h3 className="text-base font-semibold text-neutral-50">{title}</h3>

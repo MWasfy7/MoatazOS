@@ -64,3 +64,38 @@ test.describe("Mobile Arabic", () => {
     await expect(page.getByTestId("decision-card")).toBeVisible();
   });
 });
+
+
+test.describe("Required product screenshots", () => {
+  test("captures the required review surfaces", async ({ page }, testInfo) => {
+    const capture = async (name: string) => {
+      await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
+    };
+
+    if (testInfo.project.name === "desktop-chromium") {
+      await page.goto("/app-studio/salesos");
+      await capture("desktop-command-center");
+
+      const decisionStates: Array<[string, string]> = [
+        ["opp-farah", "decision-no-action"],
+        ["opp-ahmed", "decision-next-step-ready"],
+        ["opp-omar", "decision-insufficient-evidence"],
+        ["opp-layla", "decision-contradictory-evidence"],
+      ];
+      for (const [opportunityId, fileName] of decisionStates) {
+        await page.goto(`/app-studio/salesos/opportunity/${opportunityId}`);
+        await expect(page.getByTestId("decision-card")).toBeVisible();
+        await capture(fileName);
+      }
+      return;
+    }
+
+    await page.goto("/app-studio/salesos");
+    await capture("mobile-command-center");
+    await page.getByRole("button", { name: "العربية" }).click();
+    await page.goto("/app-studio/salesos/opportunity/opp-mahmoud");
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await expect(page.getByTestId("decision-card")).toBeVisible();
+    await capture("arabic-rtl-mobile");
+  });
+});

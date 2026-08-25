@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { LocaleProvider, useLocale } from "@/lib/i18n/LocaleProvider";
 import { DecisionCard } from "@/components/salesos/DecisionCard/DecisionCard";
-import { FIXTURE_11_ARABIC_MOBILE, FIXTURE_M1A_RESTRAINT_RESPECTED } from "@/lib/fixtures";
+import { FIXTURE_11_ARABIC_MOBILE, FIXTURE_M1A_RESTRAINT_RESPECTED, FIXTURE_M1B_VALIDATED_UNCHANGED } from "@/lib/fixtures";
 import type { DecisionSnapshot } from "@/lib/types";
 import { useEffect } from "react";
 
@@ -55,5 +55,17 @@ describe("Arabic RTL semantics render", () => {
     expect(screen.getByText("مراجعة سلوك مندوب المبيعات")).toBeInTheDocument();
     expect(screen.getByText("إمكانية تقييم الالتزام بالتريث")).toBeInTheDocument();
     expect(screen.getByText("هذا يسمح بإعادة التقييم فقط، ولا يعني السماح بالتواصل مع العميل.")).toBeInTheDocument();
+  });
+
+  it("renders actual Arabic M1B manager-review strings", () => {
+    render(
+      <LocaleProvider>
+        <ArabicHarness snapshot={FIXTURE_M1B_VALIDATED_UNCHANGED} />
+      </LocaleProvider>,
+    );
+    expect(screen.getByText("مراجعة تدخل المدير")).toBeInTheDocument();
+    expect(screen.getByText("اللقطة السابقة الثابتة")).toBeInTheDocument();
+    expect(screen.getByText("اللقطة الحالية الثابتة")).toBeInTheDocument();
+    expect(screen.getByText("لم يتغير القرار بعد إعادة التقييم.")).toBeInTheDocument();
   });
 });

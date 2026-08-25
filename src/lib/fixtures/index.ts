@@ -12,6 +12,7 @@ import type {
   ContradictoryEvidenceSnapshot,
   DecisionSnapshot,
   InsufficientEvidenceSnapshot,
+  ManagerInterventionFixture,
   NextStepReadySnapshot,
   NoActionSnapshot,
   Opportunity,
@@ -639,6 +640,33 @@ export const FIXTURE_M1A_LATER_COMMITMENT = m1aNoActionFixture(
   [{ id: "hist-m1a-commitment-1", kind: "chasing_violation", occurredAt: "2026-08-22T18:00:00Z", decisionState: "NO_ACTION", summary: "Chasing violation remains recorded after later buyer commitment.", snapshotId: "snap-m1a-later-commitment-001" }],
 );
 
+// M1B fixtures model review records only. They are immutable synthetic data,
+// never a channel to alter the reviewed decision or trigger an external action.
+function m1bFixture(
+  opportunityId: string,
+  snapshotId: string,
+  fixtureId: string,
+  buyerAlias: string,
+  intervention: ManagerInterventionFixture,
+  behavior: NonNullable<NoActionSnapshot["restraint"]["behavior"]> = { state: "RESTRAINT_PENDING", observationWindow: "Open synthetic observation window.", summary: "No behavior conclusion is inferred." },
+): NoActionSnapshot {
+  return {
+    ...m1aNoActionFixture(opportunityId, snapshotId, fixtureId, buyerAlias, "NO_DECISION_GRADE_SIGNAL", "No decision-grade buyer signal supports outreach in this frozen snapshot.", behavior, { state: "OBSERVABLE", summary: "The recorded review remains bounded to this snapshot." }, [{ id: `${snapshotId}-history`, kind: "decision_recorded", occurredAt: "2026-08-25T12:00:00Z", decisionState: "NO_ACTION", summary: "NO_ACTION remains the reviewed immutable decision.", snapshotId }]),
+    managerIntervention: { ...intervention, reviewedSnapshotId: snapshotId },
+  };
+}
+
+export const FIXTURE_M1B_DISAGREEMENT = m1bFixture("opp-m1b-disagreement", "snap-m1b-disagreement-001", "fixture-m1b-disagreement", "D. Hani", { state: "COMMENTARY_ONLY", disagreement: "Manager records disagreement without adding decision-grade evidence.", contributions: [{ id: "m1b-commentary", managerAlias: "Manager M-01", type: "COMMENTARY_ONLY", validation: "NOT_REQUIRED", summary: "Review commentary is not buyer evidence and does not affect computation.", materiallyRelevant: false }], reviewedSnapshotId: "" });
+export const FIXTURE_M1B_PENDING = m1bFixture("opp-m1b-pending", "snap-m1b-pending-001", "fixture-m1b-pending", "P. Amr", { state: "EVIDENCE_SUBMITTED_PENDING_VALIDATION", contributions: [{ id: "m1b-pending", managerAlias: "Manager M-02", type: "NEW_BUYER_EVIDENCE", validation: "PENDING", summary: "Bounded buyer-evidence claim awaits validation.", materiallyRelevant: true }], reviewedSnapshotId: "" });
+export const FIXTURE_M1B_REJECTED = m1bFixture("opp-m1b-rejected", "snap-m1b-rejected-001", "fixture-m1b-rejected", "R. Basem", { state: "REJECTED_EVIDENCE", contributions: [{ id: "m1b-rejected", managerAlias: "Manager M-03", type: "PROCUREMENT_EVIDENCE", validation: "REJECTED", summary: "Claim was rejected and remains outside decision computation.", materiallyRelevant: false }], reviewedSnapshotId: "" });
+export const FIXTURE_M1B_VALIDATED_UNCHANGED = m1bFixture("opp-m1b-unchanged", "snap-m1b-unchanged-001", "fixture-m1b-validated-unchanged", "U. Nader", { state: "REEVALUATED_NEW_SNAPSHOT", contributions: [{ id: "m1b-validated-unchanged", managerAlias: "Manager M-04", type: "TIMING_CONTEXT", validation: "VALIDATED", summary: "Validated timing context does not cross the decision threshold.", materiallyRelevant: true }], reviewedSnapshotId: "", reevaluatedSnapshot: { snapshotId: "snap-m1b-unchanged-002", decisionState: "NO_ACTION", evidenceDelta: 1, contradictionCount: 0, restraintState: "RESTRAINT_PENDING", uncertainty: "No attributable buyer trigger is established.", changeReason: "Validated context was reviewed without changing the decision." } });
+export const FIXTURE_M1B_VALIDATED_CHANGED = m1bFixture("opp-m1b-changed", "snap-m1b-changed-001", "fixture-m1b-validated-changed", "C. Mina", { state: "REEVALUATED_NEW_SNAPSHOT", contributions: [{ id: "m1b-validated-changed", managerAlias: "Manager M-05", type: "NEW_BUYER_EVIDENCE", validation: "VALIDATED", summary: "Validated buyer evidence crossed the reevaluation threshold.", materiallyRelevant: true }], reviewedSnapshotId: "", reevaluatedSnapshot: { snapshotId: "snap-m1b-changed-002", decisionState: "NEXT_STEP_READY", evidenceDelta: 1, contradictionCount: 0, restraintState: "CHASING_VIOLATION", uncertainty: "Prior restraint history remains preserved.", changeReason: "A new immutable snapshot reflects validated material evidence." } });
+export const FIXTURE_M1B_CONTEXT_CORRECTION = m1bFixture("opp-m1b-context", "snap-m1b-context-001", "fixture-m1b-context-correction", "S. Fadi", { state: "REEVALUATION_REQUESTED", contributions: [{ id: "m1b-context-original", managerAlias: "Manager M-06", type: "TIMING_CONTEXT", validation: "EXCLUDED", summary: "Earlier timing context was excluded from computation.", materiallyRelevant: false }, { id: "m1b-context-corrected", managerAlias: "Manager M-06", type: "SOURCE_CORRECTION", validation: "VALIDATED", summary: "Validated source correction preserves lineage to the excluded record.", materiallyRelevant: true, supersedesContributionId: "m1b-context-original" }], reviewedSnapshotId: "" });
+export const FIXTURE_M1B_INTEGRITY_FLAG = m1bFixture("opp-m1b-integrity", "snap-m1b-integrity-001", "fixture-m1b-integrity-flag", "I. Salma", { state: "EVIDENCE_SUBMITTED_PENDING_VALIDATION", contributions: [{ id: "m1b-integrity", managerAlias: "Manager M-07", type: "INTEGRITY_FLAG", validation: "PENDING", summary: "Integrity concern is pending independent validation.", materiallyRelevant: true }], reviewedSnapshotId: "" });
+export const FIXTURE_M1B_RESTRAINT_RESPECTED = m1bFixture("opp-m1b-respected", "snap-m1b-respected-001", "fixture-m1b-prior-respected", "H. Ehab", { state: "NO_INTERVENTION", contributions: [], reviewedSnapshotId: "" }, { state: "RESTRAINT_RESPECTED", observationWindow: "Complete historical window.", summary: "Prior restraint review is preserved without causal claims." });
+export const FIXTURE_M1B_CHASING_VIOLATION = m1bFixture("opp-m1b-chasing", "snap-m1b-chasing-001", "fixture-m1b-prior-chasing", "K. Rami", { state: "REEVALUATED_NEW_SNAPSHOT", contributions: [{ id: "m1b-chasing-validated", managerAlias: "Manager M-08", type: "NEW_BUYER_EVIDENCE", validation: "VALIDATED", summary: "Validated evidence produced a later immutable snapshot.", materiallyRelevant: true }], reviewedSnapshotId: "", reevaluatedSnapshot: { snapshotId: "snap-m1b-chasing-002", decisionState: "NEXT_STEP_READY", evidenceDelta: 1, contradictionCount: 0, restraintState: "CHASING_VIOLATION", uncertainty: "The prior violation remains visible after reevaluation.", changeReason: "Later evidence does not erase historical restraint behavior." } }, { state: "CHASING_VIOLATION", observationWindow: "Complete historical window.", summary: "A chasing violation remains in the immutable history." });
+export const FIXTURE_M1B_STALE = m1bFixture("opp-m1b-stale", "snap-m1b-stale-001", "fixture-m1b-stale", "T. Magdy", { state: "STALE_REVIEW", contributions: [{ id: "m1b-stale-validated", managerAlias: "Manager M-09", type: "NEW_BUYER_EVIDENCE", validation: "VALIDATED", summary: "Validated material is attached to a superseded review.", materiallyRelevant: true }], reviewedSnapshotId: "", staleReason: "A later synthetic snapshot superseded this review before reevaluation." });
+
 // ---------------------------------------------------------------------------
 // Aggregate lookup
 // ---------------------------------------------------------------------------
@@ -662,6 +690,16 @@ export const ALL_SNAPSHOTS: Record<string, DecisionSnapshot> = {
   "snap-m1a-unobservable-001": FIXTURE_M1A_NOT_OBSERVABLE,
   "snap-m1a-later-reply-001": FIXTURE_M1A_LATER_REPLY,
   "snap-m1a-later-commitment-001": FIXTURE_M1A_LATER_COMMITMENT,
+  "snap-m1b-disagreement-001": FIXTURE_M1B_DISAGREEMENT,
+  "snap-m1b-pending-001": FIXTURE_M1B_PENDING,
+  "snap-m1b-rejected-001": FIXTURE_M1B_REJECTED,
+  "snap-m1b-unchanged-001": FIXTURE_M1B_VALIDATED_UNCHANGED,
+  "snap-m1b-changed-001": FIXTURE_M1B_VALIDATED_CHANGED,
+  "snap-m1b-context-001": FIXTURE_M1B_CONTEXT_CORRECTION,
+  "snap-m1b-integrity-001": FIXTURE_M1B_INTEGRITY_FLAG,
+  "snap-m1b-respected-001": FIXTURE_M1B_RESTRAINT_RESPECTED,
+  "snap-m1b-chasing-001": FIXTURE_M1B_CHASING_VIOLATION,
+  "snap-m1b-stale-001": FIXTURE_M1B_STALE,
 };
 
 export const OPPORTUNITIES: Opportunity[] = [
@@ -682,6 +720,16 @@ export const OPPORTUNITIES: Opportunity[] = [
   { opportunityId: "opp-m1a-unobservable", buyerAlias: "U. Kareem", currentSnapshotId: "snap-m1a-unobservable-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
   { opportunityId: "opp-m1a-later-reply", buyerAlias: "L. Hatem", currentSnapshotId: "snap-m1a-later-reply-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
   { opportunityId: "opp-m1a-later-commitment", buyerAlias: "M. Adel", currentSnapshotId: "snap-m1a-later-commitment-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-disagreement", buyerAlias: "D. Hani", currentSnapshotId: "snap-m1b-disagreement-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-pending", buyerAlias: "P. Amr", currentSnapshotId: "snap-m1b-pending-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-rejected", buyerAlias: "R. Basem", currentSnapshotId: "snap-m1b-rejected-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-unchanged", buyerAlias: "U. Nader", currentSnapshotId: "snap-m1b-unchanged-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-changed", buyerAlias: "C. Mina", currentSnapshotId: "snap-m1b-changed-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-context", buyerAlias: "S. Fadi", currentSnapshotId: "snap-m1b-context-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-integrity", buyerAlias: "I. Salma", currentSnapshotId: "snap-m1b-integrity-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-respected", buyerAlias: "H. Ehab", currentSnapshotId: "snap-m1b-respected-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-chasing", buyerAlias: "K. Rami", currentSnapshotId: "snap-m1b-chasing-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1b-stale", buyerAlias: "T. Magdy", currentSnapshotId: "snap-m1b-stale-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
 ];
 
 export function getSnapshot(snapshotId: string): DecisionSnapshot | undefined {

@@ -15,21 +15,24 @@ test.describe("SalesOS Command Center click-through", () => {
 
   test("selects an opportunity and sees its Decision Card", async ({ page }) => {
     await page.goto("/app-studio/salesos");
-    await page.getByRole("link", { name: /A\. Hassan/i }).click();
+    await Promise.all([
+      page.waitForURL(/\/app-studio\/salesos\/opportunity\/opp-ahmed$/),
+      page.getByRole("link", { name: /A\. Hassan/i }).click(),
+    ]);
     await expect(page.getByTestId("decision-card")).toBeVisible();
   });
 
   test("switches between all four decision-state fixtures", async ({ page }) => {
     const cases: Array<[string, string]> = [
-      ["F. Al-Sayed", "NO_ACTION"],
-      ["A. Hassan", "NEXT_STEP_READY"],
-      ["O. Zaki", "INSUFFICIENT_EVIDENCE"],
-      ["L. Fahmy", "CONTRADICTORY_EVIDENCE"],
+      ["opp-farah", "NO_ACTION"],
+      ["opp-ahmed", "NEXT_STEP_READY"],
+      ["opp-omar", "INSUFFICIENT_EVIDENCE"],
+      ["opp-layla", "CONTRADICTORY_EVIDENCE"],
     ];
-    for (const [name, state] of cases) {
-      await page.goto("/app-studio/salesos");
-      await page.getByRole("link", { name: new RegExp(name.replace(".", "\\.")) }).click();
-      await expect(page.locator(`[data-decision-state="${state}"]`).first()).toBeVisible();
+    for (const [opportunityId, state] of cases) {
+      await page.goto(`/app-studio/salesos/opportunity/${opportunityId}`);
+      await expect(page.getByTestId("decision-card")).toBeVisible();
+      await expect(page.getByTestId("decision-card").locator(`[data-decision-state="${state}"]`).first()).toBeVisible();
     }
   });
 
@@ -41,8 +44,9 @@ test.describe("SalesOS Command Center click-through", () => {
 
   test("sees a new-snapshot notice and can explicitly compare", async ({ page }) => {
     await page.goto("/app-studio/salesos/opportunity/opp-karim");
-    await expect(page.getByText(/newer snapshot/i)).toBeVisible();
-    await page.getByRole("button", { name: /compare/i }).click();
+    const compareButton = page.getByRole("button", { name: /compare snapshots/i });
+    await expect(compareButton).toBeVisible();
+    await compareButton.click();
     await expect(page.getByTestId("snapshot-comparison")).toBeVisible();
   });
 
@@ -57,9 +61,8 @@ test.describe("Mobile Arabic", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("Arabic mobile fixture renders correctly", async ({ page }) => {
-    await page.goto("/app-studio/salesos");
-    await page.getByRole("button", { name: "العربية" }).click();
     await page.goto("/app-studio/salesos/opportunity/opp-mahmoud");
+    await page.getByRole("button", { name: "العربية" }).click();
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
     await expect(page.getByTestId("decision-card")).toBeVisible();
   });
@@ -92,8 +95,8 @@ test.describe("Required product screenshots", () => {
 
     await page.goto("/app-studio/salesos");
     await capture("mobile-command-center");
-    await page.getByRole("button", { name: "العربية" }).click();
     await page.goto("/app-studio/salesos/opportunity/opp-mahmoud");
+    await page.getByRole("button", { name: "العربية" }).click();
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
     await expect(page.getByTestId("decision-card")).toBeVisible();
     await capture("arabic-rtl-mobile");

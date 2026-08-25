@@ -8,16 +8,18 @@ There is no live backend, no network call, and no execution surface
 of any kind - no Send, Call, Schedule, CRM write, pricing, billing, or
 override control exists anywhere in this codebase.
 
-## Important: this was built without network access
+## Validation status
 
-This codebase was authored in a sandboxed environment with no access
-to the npm registry or to GitHub. **No dependency has actually been
-installed, and no build/test/lint command has actually been run**
-against it yet. Every file here is hand-written, careful TypeScript -
-not verified by a real compiler in this session. Treat the commands
-below as the intended, standard way to run this project once it is
-on a machine with normal network access; they have not been executed
-here.
+This codebase was originally authored in a network-restricted sandbox.
+It has since been validated on August 25, 2026 with the following
+commands:
+
+- `npm install`
+- `npm run typecheck`
+- `npm run lint`
+- `npm test`
+- `npx playwright install`
+- `npm run test:e2e`
 
 ## Requirements
 

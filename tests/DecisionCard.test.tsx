@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { renderWithLocale } from "./test-utils";
 import { DecisionCard } from "@/components/salesos/DecisionCard/DecisionCard";
 import {
@@ -35,9 +35,11 @@ function assertNoForbiddenControls(container: HTMLElement) {
 describe("NO_ACTION renders restraint", () => {
   it("shows the restraint reason and do-not-do behaviors, outranking other content", () => {
     renderWithLocale(<DecisionCard snapshot={FIXTURE_1_NO_ACTION} />);
-    expect(screen.getByText(FIXTURE_1_NO_ACTION.restraint.reason)).toBeInTheDocument();
+    const restraintSection = document.getElementById("no-action-restraint-title")?.closest("section");
+    expect(restraintSection).not.toBeNull();
+    expect(within(restraintSection!).getByText(FIXTURE_1_NO_ACTION.restraint.reason)).toBeInTheDocument();
     for (const behavior of FIXTURE_1_NO_ACTION.restraint.doNotDoBehaviors) {
-      expect(screen.getByText(behavior)).toBeInTheDocument();
+      expect(within(restraintSection!).getByText(behavior)).toBeInTheDocument();
     }
   });
 

@@ -21,6 +21,9 @@ export function NoActionPanel({ snapshot }: { snapshot: NoActionSnapshot }) {
       <h3 id="no-action-restraint-title" className="text-sm font-semibold uppercase tracking-wide text-neutral-300">
         {dict.decisionCard.restraintTitle}
       </h3>
+      <p className="mt-2 text-base font-medium text-neutral-100" dir="auto">
+        {snapshot.restraint.reason}
+      </p>
 
       {snapshot.restraint.doNotDoBehaviors.length > 0 ? (
         <div className="mt-3">

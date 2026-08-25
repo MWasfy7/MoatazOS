@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { DecisionCard } from "@/components/salesos/DecisionCard/DecisionCard";
 import {
   FIXTURE_M1B_CHASING_VIOLATION,
@@ -76,9 +76,26 @@ describe("M1B manager intervention acceptance", () => {
 
   it("MIR-024 keeps local review controls bounded and keyboard-operable", () => {
     renderWithLocale(<DecisionCard snapshot={FIXTURE_M1B_DISAGREEMENT} />);
+    const review = screen.getByTestId("manager-intervention-review");
+    expect(review.querySelectorAll("[data-validation-state]")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Add evidence" }));
     fireEvent.click(screen.getByRole("button", { name: "Record structured contribution" }));
-    expect(screen.getByTestId("manager-intervention-timeline")).toHaveTextContent("Evidence pending validation");
+    fireEvent.click(screen.getByRole("button", { name: "Correct context" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record structured contribution" }));
+    expect(review.querySelectorAll("[data-validation-state]")).toHaveLength(3);
+    expect(screen.getAllByText("Pending validation").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Request reevaluation" })).toBeDisabled();
+    expect(screen.getByTestId("manager-intervention-timeline")).toHaveTextContent("Context correction pending validation");
     expect(screen.queryByRole("button", { name: /send|call|schedule|price|billing|provision|override/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps terminal review states truthful when contribution controls are unavailable", () => {
+    renderWithLocale(<DecisionCard snapshot={FIXTURE_M1B_STALE} />);
+    expect(screen.getByRole("button", { name: "Record structured contribution" })).toBeDisabled();
+    expect(screen.getByTestId("manager-intervention-timeline")).toHaveTextContent("Stale review");
+    cleanup();
+    renderWithLocale(<DecisionCard snapshot={FIXTURE_M1B_VALIDATED_CHANGED} />);
+    expect(screen.getByRole("button", { name: "Record structured contribution" })).toBeDisabled();
+    expect(screen.getByTestId("manager-intervention-timeline")).toHaveTextContent("Reevaluated with a new snapshot");
   });
 });

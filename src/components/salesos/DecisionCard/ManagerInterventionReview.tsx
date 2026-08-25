@@ -32,10 +32,13 @@ export function ManagerInterventionReview({ snapshot }: { snapshot: DecisionSnap
   const [reviewState, setReviewState] = useState<ManagerInterventionState>(intervention.state);
   const [selectedType, setSelectedType] = useState<ManagerContributionType>("COMMENTARY_ONLY");
   const [showComparison, setShowComparison] = useState(Boolean(intervention.reevaluatedSnapshot));
+  const [localContributions, setLocalContributions] = useState<ManagerContribution[]>([]);
+  const contributions = [...intervention.contributions, ...localContributions];
   const hasValidatedMaterial = intervention.contributions.some(
     (contribution) => contribution.validation === "VALIDATED" && contribution.materiallyRelevant,
   );
   const isStale = reviewState === "STALE_REVIEW" || intervention.state === "STALE_REVIEW";
+  const isTerminal = isStale || reviewState === "REJECTED_EVIDENCE" || reviewState === "REEVALUATED_NEW_SNAPSHOT";
   const reevaluationEligible = hasValidatedMaterial && !isStale;
 
   if (!open) {
@@ -47,6 +50,16 @@ export function ManagerInterventionReview({ snapshot }: { snapshot: DecisionSnap
   }
 
   function recordContribution() {
+    if (isTerminal) return;
+    const validation = selectedType === "COMMENTARY_ONLY" ? "NOT_REQUIRED" : "PENDING";
+    setLocalContributions((current) => [...current, {
+      id: `local-contribution-${current.length + 1}`,
+      managerAlias: dict.managerIntervention.localManagerAlias,
+      type: selectedType,
+      validation,
+      summary: dict.managerIntervention.recordedContributionSummary,
+      materiallyRelevant: false,
+    }]);
     setReviewState(selectedType === "COMMENTARY_ONLY" ? "COMMENTARY_ONLY" : selectedType === "TIMING_CONTEXT" || selectedType === "SOURCE_CORRECTION" ? "CONTEXT_CORRECTION_PENDING_VALIDATION" : "EVIDENCE_SUBMITTED_PENDING_VALIDATION");
   }
 
@@ -72,15 +85,15 @@ export function ManagerInterventionReview({ snapshot }: { snapshot: DecisionSnap
       </dl>
 
       <ManagerDisagreementPanel disagreement={intervention.disagreement} />
-      <ManagerContributionComposer selectedType={selectedType} onSelect={setSelectedType} onRecord={recordContribution} />
+      <ManagerContributionComposer selectedType={selectedType} onSelect={setSelectedType} onRecord={recordContribution} disabled={isTerminal} />
 
       <div className="space-y-2" aria-label={dict.managerIntervention.contribution}>
-        {intervention.contributions.map((contribution) => <ContributionValidationState key={contribution.id} contribution={contribution} />)}
+        {contributions.map((contribution) => <ContributionValidationState key={contribution.id} contribution={contribution} />)}
       </div>
 
       <ReevaluationGate eligible={reevaluationEligible} stale={isStale} onRequest={requestReevaluation} />
       {showComparison && intervention.reevaluatedSnapshot ? <DecisionSnapshotComparison snapshot={snapshot} intervention={intervention} /> : null}
-      <ManagerInterventionTimeline state={reviewState} contributions={intervention.contributions} staleReason={intervention.staleReason} />
+      <ManagerInterventionTimeline state={reviewState} contributions={contributions} staleReason={intervention.staleReason} />
     </section>
   );
 }
@@ -91,11 +104,11 @@ export function ManagerDisagreementPanel({ disagreement }: { disagreement?: stri
   return <div className="rounded-lg border border-neutral-800 bg-neutral-950/70 p-3"><p className="text-xs font-medium uppercase tracking-wide text-neutral-400">{dict.managerIntervention.disagreement}</p><p className="mt-1 text-sm text-neutral-200" dir="auto">{disagreement}</p></div>;
 }
 
-export function ManagerContributionComposer({ selectedType, onSelect, onRecord }: { selectedType: ManagerContributionType; onSelect: (type: ManagerContributionType) => void; onRecord: () => void }) {
+export function ManagerContributionComposer({ selectedType, onSelect, onRecord, disabled }: { selectedType: ManagerContributionType; onSelect: (type: ManagerContributionType) => void; onRecord: () => void; disabled: boolean }) {
   const { dict } = useLocale();
-  const choices: ManagerContributionType[] = ["COMMENTARY_ONLY", "NEW_BUYER_EVIDENCE", "TIMING_CONTEXT", "SOURCE_CORRECTION", "INTEGRITY_FLAG"];
+  const choices: ManagerContributionType[] = ["COMMENTARY_ONLY", "NEW_BUYER_EVIDENCE", "PROCUREMENT_EVIDENCE", "TIMING_CONTEXT", "SOURCE_CORRECTION", "SELLER_ACTIVITY_CORRECTION", "INTEGRITY_FLAG"];
   const choiceLabel = (type: ManagerContributionType) => type === "NEW_BUYER_EVIDENCE" ? dict.managerIntervention.addEvidence : type === "TIMING_CONTEXT" ? dict.managerIntervention.correctContext : type === "INTEGRITY_FLAG" ? dict.managerIntervention.flagIntegrity : dict.managerIntervention.contributionTypes[type];
-  return <div className="space-y-2 rounded-lg border border-neutral-800 p-3"><p className="text-sm font-medium text-neutral-200">{dict.managerIntervention.contribution}</p><div className="flex flex-wrap gap-2">{choices.map((type) => <button key={type} type="button" aria-pressed={selectedType === type} className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-200" onClick={() => onSelect(type)}>{choiceLabel(type)}</button>)}</div><p className="text-xs text-neutral-400" dir="auto">{selectedType === "COMMENTARY_ONLY" ? dict.managerIntervention.commentaryOnly : dict.managerIntervention.reevaluationIneligible}</p><button type="button" className="rounded bg-sky-800 px-3 py-2 text-sm font-medium text-white" onClick={onRecord}>{dict.managerIntervention.recordContribution}</button></div>;
+  return <div className="space-y-2 rounded-lg border border-neutral-800 p-3"><p className="text-sm font-medium text-neutral-200">{dict.managerIntervention.contribution}</p><div className="flex flex-wrap gap-2">{choices.map((type) => <button key={type} type="button" disabled={disabled} aria-pressed={selectedType === type} className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-200 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => onSelect(type)}>{choiceLabel(type)}</button>)}</div><p className="text-xs text-neutral-400" dir="auto">{selectedType === "COMMENTARY_ONLY" ? dict.managerIntervention.commentaryOnly : dict.managerIntervention.reevaluationIneligible}</p><button type="button" disabled={disabled} className="rounded bg-sky-800 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-700" onClick={onRecord}>{dict.managerIntervention.recordContribution}</button></div>;
 }
 
 export function ContributionValidationState({ contribution }: { contribution: ManagerContribution }) {

@@ -134,6 +134,8 @@ export const en = {
     correctContext: "Correct context",
     flagIntegrity: "Flag integrity",
     recordContribution: "Record structured contribution",
+    recordedContributionSummary: "Locally recorded for review; it does not enter decision computation.",
+    localManagerAlias: "Manager M-local",
     reevaluationGate: "Reevaluation gate",
     reevaluationEligible: "Validated, materially relevant evidence permits reevaluation only.",
     reevaluationIneligible: "Reevaluation requires validated, materially relevant evidence.",

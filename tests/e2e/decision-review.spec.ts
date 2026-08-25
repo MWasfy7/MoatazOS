@@ -169,3 +169,25 @@ test.describe("M1B manager intervention review", () => {
     await page.screenshot({ path: testInfo.outputPath("m1b-arabic-rtl-manager-intervention.png"), fullPage: true });
   });
 });
+
+test.describe("M1C Pilot Evidence Review", () => {
+  test("renders the frozen aggregate review without execution controls", async ({ page }) => {
+    await page.goto("/app-studio/salesos/pilot-evidence");
+    await expect(page.getByTestId("pilot-evidence-review")).toBeVisible();
+    await expect(page.getByText(/12 \/ 15/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /send|call|crm|price|override/i })).toHaveCount(0);
+  });
+
+  test("captures M1C review evidence", async ({ page }, testInfo) => {
+    await page.goto("/app-studio/salesos/pilot-evidence");
+    await expect(page.getByTestId("pilot-evidence-review")).toBeVisible();
+    const names = testInfo.project.name === "desktop-chromium"
+      ? ["m1c-desktop-pilot-evidence-review", "m1c-evidence-ready-limitations", "m1c-restraint-chasing-evidence", "m1c-egypt-gcc-split", "m1c-buyer-disputed", "m1c-validated-correction-comparison", "m1c-commercial-progression", "m1c-superseded-read-only-review"]
+      : ["m1c-mobile-pilot-evidence-review", "m1c-arabic-rtl-pilot-evidence-review"];
+    if (testInfo.project.name !== "desktop-chromium") {
+      await page.locator("header button[aria-pressed='false']").click();
+      await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    }
+    for (const name of names) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
+  });
+});

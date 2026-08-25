@@ -17,6 +17,7 @@ export const en = {
     opportunityListTitle: "Opportunities",
     selectPrompt: "Select an opportunity to inspect its decision.",
   },
+  pilotReview: { title: "Pilot Evidence Review", open: "Open Pilot Evidence Review", readiness: "Evidence readiness", validatedEpisodes: "Validated episodes", excludedEpisodes: "Excluded episodes", companies: "Distinct companies", observationWindow: "Observation window", buyerReaction: "Buyer reaction", behavioralEvidence: "Behavioral evidence", regionalSplit: "Regional evidence split", commercialProgression: "Commercial progression", limitations: "Limitations and not proven", provenance: "Bounded provenance", disputeTimeline: "Disputes and corrections", notProven: "Not proven", insufficient: "Insufficient evidence", descriptiveOnly: "Descriptive only; not causal.", previous: "Previous immutable snapshot", current: "Current immutable snapshot", noAuthority: "This frozen review has no durable write or execution authority.", states: { NOT_REVIEWABLE: "Not reviewable", EVIDENCE_READY: "Evidence ready", BUYER_REVIEW_IN_PROGRESS: "Buyer review in progress", BUYER_DISPUTED: "Buyer disputed", BUYER_ACCEPTED_DIRECTIONAL: "Buyer accepted directionally", BUYER_ACCEPTED_DECISION_USEFUL: "Buyer accepted as decision-useful", COMMERCIAL_NEXT_STEP_PRESENT: "Commercial next step present", SUPERSEDED: "Superseded" } },
   decisionState: {
     NO_ACTION: "No action",
     NEXT_STEP_READY: "Next step ready",

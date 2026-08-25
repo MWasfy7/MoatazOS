@@ -19,6 +19,7 @@ export const ar: Dictionary = {
     opportunityListTitle: "الفرص",
     selectPrompt: "اختر فرصة لفحص قرارها.",
   },
+  pilotReview: { title: "مراجعة أدلة التجربة", open: "فتح مراجعة أدلة التجربة", readiness: "جاهزية الأدلة", validatedEpisodes: "الحالات الموثّقة", excludedEpisodes: "الحالات المستبعدة", companies: "الشركات المميزة", observationWindow: "فترة الملاحظة", buyerReaction: "استجابة المشتري", behavioralEvidence: "الأدلة السلوكية", regionalSplit: "التوزيع الإقليمي للأدلة", commercialProgression: "التقدم التجاري", limitations: "القيود وما لم يثبت", provenance: "مصدر محدود", disputeTimeline: "النزاعات والتصحيحات", notProven: "غير مثبت", insufficient: "أدلة غير كافية", descriptiveOnly: "وصف فقط وليس علاقة سببية.", previous: "اللقطة السابقة الثابتة", current: "اللقطة الحالية الثابتة", noAuthority: "هذه المراجعة الثابتة لا تمنح صلاحية كتابة دائمة أو تنفيذ.", states: { NOT_REVIEWABLE: "غير قابلة للمراجعة", EVIDENCE_READY: "الأدلة جاهزة", BUYER_REVIEW_IN_PROGRESS: "مراجعة المشتري جارية", BUYER_DISPUTED: "اعتراض المشتري", BUYER_ACCEPTED_DIRECTIONAL: "قبول اتجاهي من المشتري", BUYER_ACCEPTED_DECISION_USEFUL: "قبول المشتري كدليل مفيد للقرار", COMMERCIAL_NEXT_STEP_PRESENT: "خطوة تجارية حاضرة", SUPERSEDED: "تم استبدالها" } },
   decisionState: {
     NO_ACTION: "لا إجراء",
     NEXT_STEP_READY: "الخطوة التالية جاهزة",

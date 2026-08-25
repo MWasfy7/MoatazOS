@@ -15,6 +15,7 @@ import { NoActionPanel } from "./panels/NoActionPanel";
 import { NextStepReadyPanel } from "./panels/NextStepReadyPanel";
 import { InsufficientEvidencePanel } from "./panels/InsufficientEvidencePanel";
 import { ContradictoryEvidencePanel } from "./panels/ContradictoryEvidencePanel";
+import { ManagerInterventionReview } from "./ManagerInterventionReview";
 
 export interface DecisionCardProps {
   snapshot: DecisionSnapshot;
@@ -66,6 +67,8 @@ export function DecisionCard({ snapshot, onCompare }: DecisionCardProps) {
       {snapshot.decisionState === "CONTRADICTORY_EVIDENCE" ? (
         <ContradictoryEvidencePanel snapshot={snapshot} />
       ) : null}
+
+      <ManagerInterventionReview snapshot={snapshot} />
 
       <DecisionReasonSummary snapshot={snapshot} />
 

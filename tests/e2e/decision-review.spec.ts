@@ -133,3 +133,39 @@ test.describe("M1A NO_ACTION restraint review", () => {
     await page.screenshot({ path: testInfo.outputPath("m1a-arabic-rtl-no-action-restraint-review.png"), fullPage: true });
   });
 });
+
+test.describe("M1B manager intervention review", () => {
+  test("exposes review and reevaluation boundaries without execution authority", async ({ page }) => {
+    await page.goto("/app-studio/salesos/opportunity/opp-m1b-pending");
+    await expect(page.getByTestId("manager-intervention-review")).toBeVisible();
+    await expect(page.getByRole("button", { name: /request reevaluation/i })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /send|call|schedule|price|billing|provision|override/i })).toHaveCount(0);
+  });
+
+  test("captures required M1B review states", async ({ page }, testInfo) => {
+    const capture = async (opportunityId: string, name: string) => {
+      await page.goto(`/app-studio/salesos/opportunity/${opportunityId}`);
+      await expect(page.getByTestId("manager-intervention-review")).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
+    };
+
+    if (testInfo.project.name === "desktop-chromium") {
+      await capture("opp-m1b-disagreement", "m1b-desktop-manager-intervention");
+      await capture("opp-m1b-disagreement", "m1b-commentary-only");
+      await capture("opp-m1b-pending", "m1b-pending");
+      await capture("opp-m1b-rejected", "m1b-rejected");
+      await capture("opp-m1b-unchanged", "m1b-validated-but-unchanged");
+      await capture("opp-m1b-changed", "m1b-no-action-to-next-step-comparison");
+      await capture("opp-m1b-chasing", "m1b-preserved-chasing-violation");
+      await capture("opp-m1b-stale", "m1b-stale-superseded-review");
+      return;
+    }
+
+    await capture("opp-m1b-disagreement", "m1b-mobile-manager-intervention");
+    if (await page.locator("html").getAttribute("dir") !== "rtl") {
+      await page.locator("header button[aria-pressed='false']").click();
+    }
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await page.screenshot({ path: testInfo.outputPath("m1b-arabic-rtl-manager-intervention.png"), fullPage: true });
+  });
+});

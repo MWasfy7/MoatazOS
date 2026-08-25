@@ -89,6 +89,62 @@ export type RestraintBehaviorState =
 export type NoActionUncertaintyState = "OBSERVABLE" | "INCOMPLETE_EVIDENCE";
 
 // ---------------------------------------------------------------------------
+// M1B Manager Intervention - commentary and bounded fixture review only
+// ---------------------------------------------------------------------------
+
+export type ManagerInterventionState =
+  | "NO_INTERVENTION"
+  | "REVIEWING"
+  | "COMMENTARY_ONLY"
+  | "EVIDENCE_SUBMITTED_PENDING_VALIDATION"
+  | "CONTEXT_CORRECTION_PENDING_VALIDATION"
+  | "REEVALUATION_REQUESTED"
+  | "REEVALUATED_NEW_SNAPSHOT"
+  | "REJECTED_EVIDENCE"
+  | "STALE_REVIEW";
+
+export type ManagerContributionType =
+  | "NEW_BUYER_EVIDENCE"
+  | "PROCUREMENT_EVIDENCE"
+  | "TIMING_CONTEXT"
+  | "SOURCE_CORRECTION"
+  | "SELLER_ACTIVITY_CORRECTION"
+  | "INTEGRITY_FLAG"
+  | "COMMENTARY_ONLY";
+
+export type ContributionValidationState = "NOT_REQUIRED" | "PENDING" | "VALIDATED" | "REJECTED" | "EXCLUDED";
+
+export interface ManagerContribution {
+  id: string;
+  managerAlias: string;
+  type: ManagerContributionType;
+  validation: ContributionValidationState;
+  summary: string;
+  materiallyRelevant: boolean;
+  supersedesContributionId?: string;
+}
+
+/** A separate, fixture-authored result record. It never mutates the reviewed snapshot. */
+export interface ManagerReevaluatedSnapshot {
+  snapshotId: string;
+  decisionState: DecisionState;
+  evidenceDelta: number;
+  contradictionCount: number;
+  restraintState?: RestraintBehaviorState;
+  uncertainty: string;
+  changeReason: string;
+}
+
+export interface ManagerInterventionFixture {
+  state: ManagerInterventionState;
+  disagreement?: string;
+  contributions: ManagerContribution[];
+  reviewedSnapshotId: string;
+  reevaluatedSnapshot?: ManagerReevaluatedSnapshot;
+  staleReason?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Evidence
 // ---------------------------------------------------------------------------
 
@@ -211,6 +267,8 @@ interface DecisionSnapshotBase {
   /** Reevaluation eligibility metadata — never auto-applied. */
   reevaluationEligible?: boolean;
   reevaluationReason?: string;
+  /** Read-only, deterministic M1B scenario data. No live manager data is stored. */
+  managerIntervention?: ManagerInterventionFixture;
 }
 
 export interface NoActionSnapshot extends DecisionSnapshotBase {

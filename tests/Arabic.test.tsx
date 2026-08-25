@@ -2,15 +2,16 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { LocaleProvider, useLocale } from "@/lib/i18n/LocaleProvider";
 import { DecisionCard } from "@/components/salesos/DecisionCard/DecisionCard";
-import { FIXTURE_11_ARABIC_MOBILE } from "@/lib/fixtures";
+import { FIXTURE_11_ARABIC_MOBILE, FIXTURE_M1A_RESTRAINT_RESPECTED } from "@/lib/fixtures";
+import type { DecisionSnapshot } from "@/lib/types";
 import { useEffect } from "react";
 
-function ArabicHarness() {
+function ArabicHarness({ snapshot = FIXTURE_11_ARABIC_MOBILE }: { snapshot?: DecisionSnapshot }) {
   const { setLocale } = useLocale();
   useEffect(() => {
     setLocale("ar");
   }, [setLocale]);
-  return <DecisionCard snapshot={FIXTURE_11_ARABIC_MOBILE} />;
+  return <DecisionCard snapshot={snapshot} />;
 }
 
 describe("Arabic RTL semantics render", () => {
@@ -21,7 +22,6 @@ describe("Arabic RTL semantics render", () => {
       </LocaleProvider>,
     );
     expect(screen.getByText(FIXTURE_11_ARABIC_MOBILE.buyerAlias)).toBeInTheDocument();
-    // The Arabic translation for NEXT_STEP_READY.
     expect(screen.getAllByText("الخطوة التالية جاهزة").length).toBeGreaterThan(0);
   });
 
@@ -41,7 +41,19 @@ describe("Arabic RTL semantics render", () => {
       </LocaleProvider>,
     );
     const text = container.textContent ?? "";
-    expect(text).not.toMatch(/إرسال/); // "send"
-    expect(text).not.toMatch(/اتصال الآن/); // "call now"
+    expect(text).not.toMatch(/إرسال/);
+    expect(text).not.toMatch(/اتصال الآن/);
+  });
+
+  it("renders localized M1A restraint-panel labels and the reevaluation boundary", () => {
+    render(
+      <LocaleProvider>
+        <ArabicHarness snapshot={FIXTURE_M1A_RESTRAINT_RESPECTED} />
+      </LocaleProvider>,
+    );
+    expect(screen.getByText("سبب التريث")).toBeInTheDocument();
+    expect(screen.getByText("مراجعة سلوك مندوب المبيعات")).toBeInTheDocument();
+    expect(screen.getByText("إمكانية تقييم الالتزام بالتريث")).toBeInTheDocument();
+    expect(screen.getByText("هذا يسمح بإعادة التقييم فقط، ولا يعني السماح بالتواصل مع العميل.")).toBeInTheDocument();
   });
 });

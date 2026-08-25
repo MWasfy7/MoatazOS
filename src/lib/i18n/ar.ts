@@ -37,6 +37,13 @@ export const ar: Dictionary = {
   },
   decisionCard: {
     restraintTitle: "قيد ضبط نشط",
+    restraintReason: "سبب التريث",
+    snapshotLabel: "اللقطة",
+    effectiveLabel: "ساري من",
+    sellerBehaviorReview: "مراجعة سلوك مندوب المبيعات",
+    observationWindow: "فترة الملاحظة",
+    restraintObservability: "إمكانية تقييم الالتزام بالتريث",
+    reevaluationOnlyNotice: "هذا يسمح بإعادة التقييم فقط، ولا يعني السماح بالتواصل مع العميل.",
     doNotDo: "لا تفعل",
     reengagementConditions: "ما الذي قد يغيّر هذا",
     whyThisDecision: "لماذا هذا القرار",

@@ -583,7 +583,7 @@ function m1aNoActionFixture(
       doNotDoBehaviors: ["Do not send another follow-up yet.", "Do not create artificial urgency.", "Do not escalate solely because the buyer is silent."],
       reengagementConditions: [
         { class: "NEW_BUYER_MESSAGE", summary: "A validated new buyer message permits reevaluation." },
-        { class: "POLICY_DEFINED_WAIT_ELAPSED", summary: "A policy-defined wait has elapsed.", policyAllowsReevaluation: true },
+        { class: "POLICY_DEFINED_WAIT_ELAPSED", summary: "A policy-defined wait has elapsed." },
       ],
       behavior,
       uncertainty,

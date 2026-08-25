@@ -25,15 +25,30 @@ describe("M1A NO_ACTION restraint acceptance", () => {
     expect(screen.getByText(/not classified as buyer rejection/i)).toBeInTheDocument();
   });
 
-  it("NAR-006 through NAR-010 preserve behavior classification and later-outcome limits", () => {
+  it("NAR-006 and NAR-007 render a chasing violation distinctly", () => {
     renderWithLocale(<DecisionCard snapshot={FIXTURE_M1A_CHASING_VIOLATION} />);
     expect(screen.getByText("CHASING_VIOLATION")).toBeInTheDocument();
+    expect(screen.getByTestId("seller-behavior-review")).toHaveAttribute("data-restraint-behavior", "CHASING_VIOLATION");
+  });
+
+  it("NAR-008 renders respected restraint distinctly", () => {
     renderWithLocale(<DecisionCard snapshot={FIXTURE_M1A_RESTRAINT_RESPECTED} />);
     expect(screen.getByText("RESTRAINT_RESPECTED")).toBeInTheDocument();
+    expect(screen.getByTestId("seller-behavior-review")).toHaveAttribute("data-restraint-behavior", "RESTRAINT_RESPECTED");
+  });
+
+  it("NAR-009 renders incomplete observation without inferring compliance", () => {
     renderWithLocale(<DecisionCard snapshot={FIXTURE_M1A_NOT_OBSERVABLE} />);
     expect(screen.getByText("NOT_OBSERVABLE")).toBeInTheDocument();
+    expect(screen.getByTestId("seller-behavior-review")).toHaveAttribute("data-restraint-behavior", "NOT_OBSERVABLE");
+  });
+
+  it("NAR-010 preserves later buyer-reply outcome limits", () => {
     renderWithLocale(<DecisionCard snapshot={FIXTURE_M1A_LATER_REPLY} />);
     expect(screen.getByText(/does not prove restraint caused it/i)).toBeInTheDocument();
+  });
+
+  it("NAR-010 preserves violations after later commitment", () => {
     renderWithLocale(<DecisionCard snapshot={FIXTURE_M1A_LATER_COMMITMENT} />);
     expect(screen.getByText(/violation remains preserved/i)).toBeInTheDocument();
   });

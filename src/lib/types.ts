@@ -223,7 +223,6 @@ export interface NoActionSnapshot extends DecisionSnapshotBase {
     reengagementConditions: Array<string | {
       class: ReengagementConditionClass;
       summary: string;
-      policyAllowsReevaluation?: boolean;
     }>;
     behavior?: {
       state: RestraintBehaviorState;

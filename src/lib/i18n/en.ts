@@ -35,6 +35,13 @@ export const en = {
   },
   decisionCard: {
     restraintTitle: "Active restraint",
+    restraintReason: "Restraint reason",
+    snapshotLabel: "Snapshot",
+    effectiveLabel: "Effective",
+    sellerBehaviorReview: "Seller behavior review",
+    observationWindow: "Observation window",
+    restraintObservability: "Restraint observability",
+    reevaluationOnlyNotice: "Reevaluation only; it does not authorize contact.",
     doNotDo: "Do not",
     reengagementConditions: "Would change this",
     whyThisDecision: "Why this decision",

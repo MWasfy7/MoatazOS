@@ -1,11 +1,11 @@
-# MoatazOS M0 — SalesOS Clickable Product
+# MoatazOS M0 - SalesOS Clickable Product
 
 An evidence-first, execution-free decision-review application:
-**App Studio → SalesOS → Command Center → Opportunity → Decision Card.**
+**App Studio -> SalesOS -> Command Center -> Opportunity -> Decision Card.**
 
 All data in this milestone is deterministic synthetic fixture data.
 There is no live backend, no network call, and no execution surface
-of any kind — no Send, Call, Schedule, CRM write, pricing, billing, or
+of any kind - no Send, Call, Schedule, CRM write, pricing, billing, or
 override control exists anywhere in this codebase.
 
 ## Important: this was built without network access
@@ -13,7 +13,7 @@ override control exists anywhere in this codebase.
 This codebase was authored in a sandboxed environment with no access
 to the npm registry or to GitHub. **No dependency has actually been
 installed, and no build/test/lint command has actually been run**
-against it yet. Every file here is hand-written, careful TypeScript —
+against it yet. Every file here is hand-written, careful TypeScript -
 not verified by a real compiler in this session. Treat the commands
 below as the intended, standard way to run this project once it is
 on a machine with normal network access; they have not been executed
@@ -31,7 +31,7 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:3000 — it redirects to
+Then open http://localhost:3000 - it redirects to
 `/app-studio/salesos`.
 
 ## Scripts
@@ -49,17 +49,17 @@ Then open http://localhost:3000 — it redirects to
 
 ## What to click through
 
-1. Open the app — you land on the SalesOS Command Center with an
+1. Open the app - you land on the SalesOS Command Center with an
    opportunity list on the left.
 2. Click any opportunity to see its Decision Card.
 3. Try these opportunities to see each of the four decision states:
-   - **F. Al-Sayed** — `NO_ACTION` (protected restraint)
-   - **A. Hassan** — `NEXT_STEP_READY`
-   - **O. Zaki** — `INSUFFICIENT_EVIDENCE`
-   - **L. Fahmy** — `CONTRADICTORY_EVIDENCE`
+   - **F. Al-Sayed** - `NO_ACTION` (protected restraint)
+   - **A. Hassan** - `NEXT_STEP_READY`
+   - **O. Zaki** - `INSUFFICIENT_EVIDENCE`
+   - **L. Fahmy** - `CONTRADICTORY_EVIDENCE`
 4. Open the Inspection Rail buttons (Evidence, Why this decision,
    Uncertainty, Buyer signals, Manager review, Pilot evidence,
-   History, Provenance) — each opens a read-only drawer.
+   History, Provenance) - each opens a read-only drawer.
 5. Visit **Y. Adel** to see a historical chasing-violation entry that
    remains visible even though the current decision is now positive.
 6. Visit **K. Mansour** to see a "newer snapshot available" banner,
@@ -85,10 +85,10 @@ src/
     salesos/
       Badges.tsx            DecisionStateBadge, FreshnessBadge
       OpportunityList.tsx
-      DecisionCard/          The Decision Card and everything in it
-        panels/              One panel per decision state
-        InspectionRail/       The actionless inspection system
-        SnapshotComparison/   Evidence Delta (before/after) view
+      DecisionCard/         The Decision Card and everything in it
+        panels/             One panel per decision state
+        InspectionRail/     The actionless inspection system
+        SnapshotComparison/ Evidence Delta (before/after) view
   lib/
     types.ts                Domain model + checkSnapshotIntegrity
     fixtures/index.ts       All 11 deterministic synthetic fixtures
@@ -103,7 +103,7 @@ tests/e2e/                  Playwright end-to-end tests
   comment states this is a deliberate, permanent constraint; every
   test file that touches a rendered panel also asserts no
   Send/Call/Schedule/CRM/Pricing/Override control exists.
-- **NO_ACTION is a protected state**, not an empty state — its visual
+- **NO_ACTION is a protected state**, not an empty state - its visual
   weight (a bordered restraint block) is deliberately heavier than the
   optional evidence-navigation content beneath it.
 - **Freshness never mutates the pinned decision.** `FreshnessState`
@@ -121,19 +121,19 @@ tests/e2e/                  Playwright end-to-end tests
 ## Known limitations
 
 - Untested against a real compiler/test runner/browser (see the
-  network-access note above) — treat this as a careful first pass,
+  network-access note above) - treat this as a careful first pass,
   not a verified green build.
 - Fixture-authored free text (e.g. a `NO_ACTION` snapshot's specific
   restraint reason) is only as bilingual as the individual fixture
   that wrote it; only the surrounding chrome/UI copy is guaranteed
   translated via the `en`/`ar` dictionaries.
 - Manager Review and Pilot Evidence drawers are intentionally empty in
-  this milestone — there is no data source for either yet, and the
+  this milestone - there is no data source for either yet, and the
   drawers say so honestly rather than fabricating content.
-- No dark/light theme toggle — this milestone ships a single dark
+- No dark/light theme toggle - this milestone ships a single dark
   theme matching the "restrained premium enterprise" direction.
 - No real persistence of the language preference across a reload
-  (in-memory only) — acceptable for this milestone's synthetic-data
+  (in-memory only) - acceptable for this milestone's synthetic-data
   scope.
 
 ## Not claimed

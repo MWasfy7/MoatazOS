@@ -1,0 +1,45 @@
+name: M0 SalesOS validation
+
+on:
+  push:
+    branches:
+      - feat/m0-salesos-clickable-product
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "package.json"
+      - "tsconfig.json"
+      - "*.config.*"
+      - ".github/workflows/m0-salesos-validation.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit/component tests
+        run: npm test
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: End-to-end tests + screenshots
+        run: npm run test:e2e
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m0-salesos-playwright-evidence
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn

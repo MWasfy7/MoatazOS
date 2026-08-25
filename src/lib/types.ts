@@ -62,6 +62,32 @@ export type FreshnessState =
   | "STALE_CONTEXT"
   | "INTEGRITY_BLOCKED";
 
+export type NoActionReasonCode =
+  | "BUYER_EXPLICIT_PAUSE"
+  | "NO_DECISION_GRADE_SIGNAL"
+  | "TIMING_NOT_READY"
+  | "RECENT_CONTACT_AWAIT_RESPONSE"
+  | "CONTRADICTORY_SIGNAL"
+  | "INSUFFICIENT_EVIDENCE"
+  | "BUYER_BOUNDARY"
+  | "OTHER_VALIDATED";
+
+export type ReengagementConditionClass =
+  | "NEW_BUYER_MESSAGE"
+  | "BUYER_REQUEST"
+  | "VERIFIED_TIMING_CHANGE"
+  | "PROCUREMENT_EVENT"
+  | "MATERIAL_CONTEXT_CORRECTION"
+  | "POLICY_DEFINED_WAIT_ELAPSED";
+
+export type RestraintBehaviorState =
+  | "RESTRAINT_PENDING"
+  | "RESTRAINT_RESPECTED"
+  | "CHASING_VIOLATION"
+  | "NOT_OBSERVABLE";
+
+export type NoActionUncertaintyState = "OBSERVABLE" | "INCOMPLETE_EVIDENCE";
+
 // ---------------------------------------------------------------------------
 // Evidence
 // ---------------------------------------------------------------------------
@@ -190,9 +216,24 @@ interface DecisionSnapshotBase {
 export interface NoActionSnapshot extends DecisionSnapshotBase {
   decisionState: "NO_ACTION";
   restraint: {
+    reasonCode?: NoActionReasonCode;
     reason: string;
+    summary?: string;
     doNotDoBehaviors: string[];
-    reengagementConditions: string[];
+    reengagementConditions: Array<string | {
+      class: ReengagementConditionClass;
+      summary: string;
+      policyAllowsReevaluation?: boolean;
+    }>;
+    behavior?: {
+      state: RestraintBehaviorState;
+      observationWindow: string;
+      summary: string;
+    };
+    uncertainty?: {
+      state: NoActionUncertaintyState;
+      summary: string;
+    };
   };
 }
 

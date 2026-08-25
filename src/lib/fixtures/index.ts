@@ -548,6 +548,98 @@ export const FIXTURE_11_ARABIC_MOBILE: NextStepReadySnapshot = {
 };
 
 // ---------------------------------------------------------------------------
+// M1A synthetic restraint-review fixtures. These are deliberately local,
+// bounded summaries: no raw buyer messages and no executable authority.
+// ---------------------------------------------------------------------------
+
+function m1aNoActionFixture(
+  opportunityId: string,
+  snapshotId: string,
+  fixtureId: string,
+  buyerAlias: string,
+  reasonCode: NonNullable<NoActionSnapshot["restraint"]["reasonCode"]>,
+  reason: string,
+  behavior: NonNullable<NoActionSnapshot["restraint"]["behavior"]>,
+  uncertainty: NonNullable<NoActionSnapshot["restraint"]["uncertainty"]>,
+  history: NoActionSnapshot["history"],
+): NoActionSnapshot {
+  return {
+    opportunityId,
+    snapshotId,
+    eventSetId: `${snapshotId}-events`,
+    fixtureId,
+    buyerAlias,
+    decisionState: "NO_ACTION",
+    freshness: "CURRENT",
+    provenance: { snapshotId, eventSetId: `${snapshotId}-events`, fixtureId, generatedAt: "2026-08-25T10:30:00Z", source: "Synthetic fixture - no live data." },
+    evidence: [{ id: `${snapshotId}-evidence`, label: "Validated decision-grade restraint evidence is present.", group: "validated", snapshotId }],
+    buyerSignals: [],
+    conditions: [{ id: `${snapshotId}-condition`, label: "A buyer-initiated contact trigger is not established for this frozen snapshot.", status: "unsatisfied" }],
+    history,
+    restraint: {
+      reasonCode,
+      reason,
+      summary: "SalesOS recommends restraint from the recorded evidence; silence is not classified as buyer rejection.",
+      doNotDoBehaviors: ["Do not send another follow-up yet.", "Do not create artificial urgency.", "Do not escalate solely because the buyer is silent."],
+      reengagementConditions: [
+        { class: "NEW_BUYER_MESSAGE", summary: "A validated new buyer message permits reevaluation." },
+        { class: "POLICY_DEFINED_WAIT_ELAPSED", summary: "A policy-defined wait has elapsed.", policyAllowsReevaluation: true },
+      ],
+      behavior,
+      uncertainty,
+    },
+  };
+}
+
+export const FIXTURE_M1A_EXPLICIT_PAUSE = m1aNoActionFixture(
+  "opp-m1a-pause", "snap-m1a-pause-001", "fixture-m1a-explicit-pause", "P. Nabil", "BUYER_BOUNDARY",
+  "Buyer explicitly asked that no follow-up occur until they reinitiate.",
+  { state: "RESTRAINT_PENDING", observationWindow: "Observation window remains open.", summary: "Behavior is not yet classified while the observation window is open." },
+  { state: "OBSERVABLE", summary: "Validated boundary evidence is complete for this decision." },
+  [{ id: "hist-m1a-pause-1", kind: "decision_recorded", occurredAt: "2026-08-25T10:30:00Z", decisionState: "NO_ACTION", summary: "NO_ACTION recorded with buyer boundary.", snapshotId: "snap-m1a-pause-001" }],
+);
+
+export const FIXTURE_M1A_RESTRAINT_RESPECTED = m1aNoActionFixture(
+  "opp-m1a-respected", "snap-m1a-respected-001", "fixture-m1a-restraint-respected", "R. Samir", "RECENT_CONTACT_AWAIT_RESPONSE",
+  "A recent seller response is awaiting a buyer reply; no decision-grade signal supports another follow-up.",
+  { state: "RESTRAINT_RESPECTED", observationWindow: "Complete through 2026-08-24.", summary: "No prohibited seller contact was observed before valid reevaluation." },
+  { state: "OBSERVABLE", summary: "The observation window is complete enough to classify recorded behavior." },
+  [{ id: "hist-m1a-respected-1", kind: "restraint_upheld", occurredAt: "2026-08-24T18:00:00Z", decisionState: "NO_ACTION", summary: "Restraint respected; no causal claim is made about any later buyer activity.", snapshotId: "snap-m1a-respected-001" }],
+);
+
+export const FIXTURE_M1A_CHASING_VIOLATION = m1aNoActionFixture(
+  "opp-m1a-chasing", "snap-m1a-chasing-001", "fixture-m1a-chasing-violation", "C. Fawzy", "BUYER_EXPLICIT_PAUSE",
+  "Buyer pause remains the effective restraint boundary for this frozen review.",
+  { state: "CHASING_VIOLATION", observationWindow: "Complete through 2026-08-24.", summary: "Validated prohibited seller contact was observed after NO_ACTION and before reevaluation." },
+  { state: "OBSERVABLE", summary: "Recorded evidence is complete enough to classify the violation." },
+  [{ id: "hist-m1a-chasing-1", kind: "chasing_violation", occurredAt: "2026-08-23T12:00:00Z", decisionState: "NO_ACTION", summary: "Chasing violation recorded and preserved despite later buyer commitment.", snapshotId: "snap-m1a-chasing-001" }],
+);
+
+export const FIXTURE_M1A_NOT_OBSERVABLE = m1aNoActionFixture(
+  "opp-m1a-unobservable", "snap-m1a-unobservable-001", "fixture-m1a-not-observable", "U. Kareem", "NO_DECISION_GRADE_SIGNAL",
+  "No decision-grade signal supports outreach, and behavior evidence is incomplete.",
+  { state: "NOT_OBSERVABLE", observationWindow: "Incomplete activity evidence.", summary: "Missing data is not treated as compliance." },
+  { state: "INCOMPLETE_EVIDENCE", summary: "The review cannot infer restraint compliance from absent records." },
+  [{ id: "hist-m1a-unobservable-1", kind: "decision_recorded", occurredAt: "2026-08-25T10:30:00Z", decisionState: "NO_ACTION", summary: "NO_ACTION retained; behavior cannot be classified.", snapshotId: "snap-m1a-unobservable-001" }],
+);
+
+export const FIXTURE_M1A_LATER_REPLY = m1aNoActionFixture(
+  "opp-m1a-later-reply", "snap-m1a-later-reply-001", "fixture-m1a-later-buyer-reply", "L. Hatem", "TIMING_NOT_READY",
+  "Timing was not ready in this frozen NO_ACTION snapshot.",
+  { state: "RESTRAINT_RESPECTED", observationWindow: "Complete before the later buyer reply.", summary: "Restraint was respected; the later buyer reply does not prove restraint caused it." },
+  { state: "OBSERVABLE", summary: "The earlier observation window is complete and remains historically fixed." },
+  [{ id: "hist-m1a-reply-1", kind: "restraint_upheld", occurredAt: "2026-08-22T18:00:00Z", decisionState: "NO_ACTION", summary: "Restraint respected before later buyer reply; no causality is claimed.", snapshotId: "snap-m1a-later-reply-001" }],
+);
+
+export const FIXTURE_M1A_LATER_COMMITMENT = m1aNoActionFixture(
+  "opp-m1a-later-commitment", "snap-m1a-later-commitment-001", "fixture-m1a-later-commitment-after-chasing", "M. Adel", "BUYER_BOUNDARY",
+  "The recorded buyer boundary remains valid for this historical NO_ACTION review.",
+  { state: "CHASING_VIOLATION", observationWindow: "Complete before the later buyer commitment.", summary: "The chasing violation remains preserved even after later buyer commitment." },
+  { state: "OBSERVABLE", summary: "The historical review is complete and is not rewritten by a later snapshot." },
+  [{ id: "hist-m1a-commitment-1", kind: "chasing_violation", occurredAt: "2026-08-22T18:00:00Z", decisionState: "NO_ACTION", summary: "Chasing violation remains recorded after later buyer commitment.", snapshotId: "snap-m1a-later-commitment-001" }],
+);
+
+// ---------------------------------------------------------------------------
 // Aggregate lookup
 // ---------------------------------------------------------------------------
 
@@ -564,6 +656,12 @@ export const ALL_SNAPSHOTS: Record<string, DecisionSnapshot> = {
   "snap-karim-002": FIXTURE_9_NEWER_SNAPSHOT,
   "snap-hana-002": FIXTURE_10_INTEGRITY_BLOCK,
   "snap-mahmoud-001": FIXTURE_11_ARABIC_MOBILE,
+  "snap-m1a-pause-001": FIXTURE_M1A_EXPLICIT_PAUSE,
+  "snap-m1a-respected-001": FIXTURE_M1A_RESTRAINT_RESPECTED,
+  "snap-m1a-chasing-001": FIXTURE_M1A_CHASING_VIOLATION,
+  "snap-m1a-unobservable-001": FIXTURE_M1A_NOT_OBSERVABLE,
+  "snap-m1a-later-reply-001": FIXTURE_M1A_LATER_REPLY,
+  "snap-m1a-later-commitment-001": FIXTURE_M1A_LATER_COMMITMENT,
 };
 
 export const OPPORTUNITIES: Opportunity[] = [
@@ -578,6 +676,12 @@ export const OPPORTUNITIES: Opportunity[] = [
   { opportunityId: "opp-karim", buyerAlias: "K. Mansour", currentSnapshotId: "snap-karim-001", decisionState: "NO_ACTION", freshness: "NEW_SNAPSHOT_AVAILABLE" },
   { opportunityId: "opp-hana", buyerAlias: "H. Rashid", currentSnapshotId: "snap-hana-002", decisionState: "NO_ACTION", freshness: "INTEGRITY_BLOCKED" },
   { opportunityId: "opp-mahmoud", buyerAlias: "محمود عبد الله", currentSnapshotId: "snap-mahmoud-001", decisionState: "NEXT_STEP_READY", freshness: "CURRENT" },
+  { opportunityId: "opp-m1a-pause", buyerAlias: "P. Nabil", currentSnapshotId: "snap-m1a-pause-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1a-respected", buyerAlias: "R. Samir", currentSnapshotId: "snap-m1a-respected-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1a-chasing", buyerAlias: "C. Fawzy", currentSnapshotId: "snap-m1a-chasing-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1a-unobservable", buyerAlias: "U. Kareem", currentSnapshotId: "snap-m1a-unobservable-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1a-later-reply", buyerAlias: "L. Hatem", currentSnapshotId: "snap-m1a-later-reply-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
+  { opportunityId: "opp-m1a-later-commitment", buyerAlias: "M. Adel", currentSnapshotId: "snap-m1a-later-commitment-001", decisionState: "NO_ACTION", freshness: "CURRENT" },
 ];
 
 export function getSnapshot(snapshotId: string): DecisionSnapshot | undefined {

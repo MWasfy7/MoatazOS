@@ -102,3 +102,34 @@ test.describe("Required product screenshots", () => {
     await capture("arabic-rtl-mobile");
   });
 });
+
+test.describe("M1A NO_ACTION restraint review", () => {
+  test("renders the complete restraint contract without execution controls", async ({ page }) => {
+    await page.goto("/app-studio/salesos/opportunity/opp-m1a-pause");
+    await expect(page.getByTestId("no-action-restraint-review")).toBeVisible();
+    await expect(page.getByTestId("do-not-do-boundary")).toBeVisible();
+    await expect(page.getByTestId("reengagement-conditions")).toBeVisible();
+    await expect(page.getByRole("button", { name: /send|call|schedule|override/i })).toHaveCount(0);
+  });
+
+  test("captures required M1A review states", async ({ page }, testInfo) => {
+    const capture = async (opportunityId: string, name: string) => {
+      await page.goto(`/app-studio/salesos/opportunity/${opportunityId}`);
+      await expect(page.getByTestId("no-action-restraint-review")).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
+    };
+
+    if (testInfo.project.name === "desktop-chromium") {
+      await capture("opp-m1a-pause", "m1a-desktop-no-action-restraint-review");
+      await capture("opp-m1a-chasing", "m1a-chasing-violation");
+      await capture("opp-m1a-respected", "m1a-restraint-respected");
+      await capture("opp-m1a-unobservable", "m1a-not-observable");
+      return;
+    }
+
+    await capture("opp-m1a-pause", "m1a-mobile-no-action-restraint-review");
+    await page.getByRole("button", { name: "العربية" }).click();
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await page.screenshot({ path: testInfo.outputPath("m1a-arabic-rtl-no-action-restraint-review.png"), fullPage: true });
+  });
+});

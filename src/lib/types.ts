@@ -340,11 +340,14 @@ export interface Opportunity {
 
 // M1C is an aggregate, frozen pilot review. It contains no mutable buyer or
 // commercial record and never grants an execution capability.
-export type PilotReadinessState = "NOT_REVIEWABLE" | "EVIDENCE_READY" | "BUYER_REVIEW_IN_PROGRESS" | "BUYER_DISPUTED" | "BUYER_ACCEPTED_DIRECTIONAL" | "BUYER_ACCEPTED_DECISION_USEFUL" | "COMMERCIAL_NEXT_STEP_PRESENT" | "SUPERSEDED";
+export type PilotReadinessState = "NOT_REVIEWABLE" | "EVIDENCE_READY";
+export type PilotEvidenceAlias = "EGYPT_GCC_FROZEN" | "DISPUTED_FROZEN" | "CORRECTION_PENDING_FROZEN" | "INSUFFICIENT_FROZEN";
+export type PilotObservationWindow = "AUGUST_2026";
+export type PilotProvenance = "SYNTHETIC_FROZEN_AGGREGATE";
 export type BuyerReactionState = "NOT_REVIEWED" | "DISPUTED" | "PARTIALLY_ACCEPTED" | "ACCEPTED_AS_DIRECTIONAL" | "ACCEPTED_AS_DECISION_USEFUL";
 export type CommercialProgressionState = "NO_COMMERCIAL_STEP" | "PRICING_REVIEW" | "PROPOSAL_REQUEST" | "PROCUREMENT_REVIEW" | "SECURITY_OR_LEGAL_REVIEW" | "PILOT_EXTENSION_REVIEW" | "VERIFIABLE_CONVERSION_ACTION";
 export type PilotDisputeState = "NO_DISPUTE" | "DISPUTED" | "CORRECTION_PENDING" | "CORRECTION_VALIDATED" | "CORRECTION_REJECTED";
-export interface PilotEvidenceSnapshot { pilotId: string; snapshotId: string; alias: string; observationWindow: string; readiness: PilotReadinessState; freshness: "CURRENT" | "SUPERSEDED"; validatedEpisodes: number; excludedEpisodes: number; distinctCompanies: number; regions: { Egypt: { numerator: number; denominator: number; excluded: number; state: "MEANINGFUL" | "INSUFFICIENT_REGIONAL_EVIDENCE" }; GCC: { numerator: number; denominator: number; excluded: number; state: "MEANINGFUL" | "INSUFFICIENT_REGIONAL_EVIDENCE" } }; behavior: { nextStepReady: number; noAction: number; restraintRespected: number; chasingViolation: number; buyerSignalAfterRestraint: number; buyerSignalAfterChasing: number }; buyerReaction: BuyerReactionState; commercial: CommercialProgressionState; dispute: PilotDisputeState; correctionSnapshotId?: string; limitations: string[]; provenance: string; }
+export interface PilotEvidenceSnapshot { pilotId: string; snapshotId: string; alias: PilotEvidenceAlias; observationWindow: PilotObservationWindow; readiness: PilotReadinessState; freshness: "CURRENT" | "SUPERSEDED"; validatedEpisodes: number; excludedEpisodes: number; distinctCompanies: number; regions: { Egypt: { numerator: number; denominator: number; excluded: number; state: "MEANINGFUL" | "INSUFFICIENT_REGIONAL_EVIDENCE" }; GCC: { numerator: number; denominator: number; excluded: number; state: "MEANINGFUL" | "INSUFFICIENT_REGIONAL_EVIDENCE" } }; behavior: { nextStepReady: number; noAction: number; restraintRespected: number; chasingViolation: number; buyerSignalAfterRestraint: number; buyerSignalAfterChasing: number }; buyerReaction: BuyerReactionState; commercial: CommercialProgressionState; dispute: PilotDisputeState; correctionSnapshotId?: string; limitations: string[]; provenance: PilotProvenance; }
 
 // ---------------------------------------------------------------------------
 // Integrity

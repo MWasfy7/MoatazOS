@@ -179,15 +179,22 @@ test.describe("M1C Pilot Evidence Review", () => {
   });
 
   test("captures M1C review evidence", async ({ page }, testInfo) => {
-    await page.goto("/app-studio/salesos/pilot-evidence");
-    await expect(page.getByTestId("pilot-evidence-review")).toBeVisible();
-    const names = testInfo.project.name === "desktop-chromium"
-      ? ["m1c-desktop-pilot-evidence-review", "m1c-evidence-ready-limitations", "m1c-restraint-chasing-evidence", "m1c-egypt-gcc-split", "m1c-buyer-disputed", "m1c-validated-correction-comparison", "m1c-commercial-progression", "m1c-superseded-read-only-review"]
-      : ["m1c-mobile-pilot-evidence-review", "m1c-arabic-rtl-pilot-evidence-review"];
+    const capture = async (snapshot: string, name: string, state: RegExp, target: string) => { await page.goto(`/app-studio/salesos/pilot-evidence?snapshot=${snapshot}`); await expect(page.getByTestId("pilot-evidence-review")).toBeVisible(); await expect(page.getByText(state).first()).toBeVisible(); await page.getByTestId(target).screenshot({ path: testInfo.outputPath(`${name}.png`) }); };
     if (testInfo.project.name !== "desktop-chromium") {
+      await page.goto("/app-studio/salesos/pilot-evidence?snapshot=current");
+      await page.screenshot({ path: testInfo.outputPath("m1c-mobile-pilot-evidence-review.png"), fullPage: true });
       await page.locator("header button[aria-pressed='false']").click();
       await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+      await page.screenshot({ path: testInfo.outputPath("m1c-arabic-rtl-pilot-evidence-review.png"), fullPage: true });
+      return;
     }
-    for (const name of names) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
+    await capture("current", "m1c-desktop-pilot-evidence-review", /Evidence ready/, "pilot-evidence-review");
+    await capture("current", "m1c-evidence-ready-limitations", /Limitations and not proven/, "pilot-limitations");
+    await capture("current", "m1c-restraint-chasing-evidence", /Chasing violation/, "pilot-behavior");
+    await capture("current", "m1c-egypt-gcc-split", /Insufficient regional evidence/, "pilot-regions");
+    await capture("disputed", "m1c-buyer-disputed", /Disputed/, "pilot-buyer-reaction");
+    await capture("current", "m1c-validated-correction-comparison", /Current immutable snapshot/, "pilot-dispute");
+    await capture("current", "m1c-commercial-progression", /Buyer-requested proposal/, "pilot-commercial");
+    await capture("disputed", "m1c-superseded-read-only-review", /Superseded/, "pilot-header");
   });
 });

@@ -3,6 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { LocaleProvider, useLocale } from "@/lib/i18n/LocaleProvider";
 import { DecisionCard } from "@/components/salesos/DecisionCard/DecisionCard";
 import { FIXTURE_11_ARABIC_MOBILE, FIXTURE_M1A_RESTRAINT_RESPECTED, FIXTURE_M1B_VALIDATED_UNCHANGED } from "@/lib/fixtures";
+import { PILOT_EVIDENCE_CURRENT } from "@/lib/fixtures/pilotEvidence";
+import { PilotEvidenceReview } from "@/components/salesos/PilotEvidenceReview";
 import type { DecisionSnapshot } from "@/lib/types";
 import { useEffect } from "react";
 
@@ -12,6 +14,14 @@ function ArabicHarness({ snapshot = FIXTURE_11_ARABIC_MOBILE }: { snapshot?: Dec
     setLocale("ar");
   }, [setLocale]);
   return <DecisionCard snapshot={snapshot} />;
+}
+
+function ArabicPilotHarness() {
+  const { setLocale } = useLocale();
+  useEffect(() => {
+    setLocale("ar");
+  }, [setLocale]);
+  return <PilotEvidenceReview snapshot={PILOT_EVIDENCE_CURRENT} />;
 }
 
 describe("Arabic RTL semantics render", () => {
@@ -67,5 +77,20 @@ describe("Arabic RTL semantics render", () => {
     expect(screen.getByText("اللقطة السابقة الثابتة")).toBeInTheDocument();
     expect(screen.getByText("اللقطة الحالية الثابتة")).toBeInTheDocument();
     expect(screen.getByText("لم يتغير القرار بعد إعادة التقييم.")).toBeInTheDocument();
+  });
+
+  it("renders the M1C pilot review in Arabic without English fixture copy", () => {
+    const { container } = render(
+      <LocaleProvider>
+        <ArabicPilotHarness />
+      </LocaleProvider>,
+    );
+    expect(screen.getByText("مراجعة أدلة التجربة")).toBeInTheDocument();
+    expect(container.textContent).toContain("مراجعة تجريبية ثابتة لمصر والخليج");
+    expect(screen.getByText("ملخص تجميعي اصطناعي ثابت؛ أدلة تجربة مقيدة للقراءة فقط.")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("Pilot Evidence Review");
+    expect(container.textContent).not.toContain("Synthetic frozen aggregate");
+    expect(container.textContent).not.toContain("Egypt");
+    expect(container.textContent).not.toContain("GCC");
   });
 });

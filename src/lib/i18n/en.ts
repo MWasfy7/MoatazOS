@@ -5,7 +5,6 @@ export const en = {
     title: "MoatazOS App Studio",
     modules: {
       salesos: "SalesOS",
-      closerArena: "Closer Arena",
       performanceos: "PerformanceOS",
       revenueos: "RevenueOS",
       analyticsos: "AnalyticsOS",

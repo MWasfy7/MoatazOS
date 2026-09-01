@@ -7,7 +7,6 @@ export const ar: Dictionary = {
     title: "استوديو تطبيقات MoatazOS",
     modules: {
       salesos: "SalesOS",
-      closerArena: "ساحة الإغلاق",
       performanceos: "PerformanceOS",
       revenueos: "RevenueOS",
       analyticsos: "AnalyticsOS",

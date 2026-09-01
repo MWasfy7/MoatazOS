@@ -21,6 +21,9 @@ export default function SalesOSCommandCenterPage() {
         <Link href="/app-studio/salesos/import" className="mb-4 block rounded-md border border-emerald-900 px-3 py-2 text-sm text-emerald-200">
           {dict.realInput.open}
         </Link>
+        <Link href="/app-studio/salesos/decision-engine" className="mb-4 block rounded-md border border-amber-900 px-3 py-2 text-sm text-amber-200">
+          {dict.decisionEngine.open}
+        </Link>
         <OpportunityList opportunities={OPPORTUNITIES} />
       </section>
 

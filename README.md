@@ -49,6 +49,52 @@ Then open http://localhost:3000 - it redirects to
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run test:e2e` | Playwright end-to-end tests (requires `npx playwright install` first) |
 
+## MCP integrations
+
+`.mcp.json` at the repo root declares five project-scoped MCP servers, so
+anyone who opens this repo in Claude Code (or any MCP-aware client that
+reads project config) is offered the same tool surface. Claude Code
+prompts once per project before it will start servers from a checked-in
+`.mcp.json`; approve it, then run `/mcp` to see connection status.
+
+| Server | Transport | Purpose here | Credentials |
+|---|---|---|---|
+| `perplexity` | stdio, `@perplexity-ai/mcp-server` | Live web search/research while working on the codebase | `PERPLEXITY_API_KEY` |
+| `playwright` | stdio, `@playwright/mcp` | Drive the dev server (`npm run dev -- --port 3100`) through a real browser; complements the `tests/e2e` suite | none |
+| `firecrawl` | stdio, `firecrawl-mcp` | Scrape/crawl external pages into structured text | `FIRECRAWL_API_KEY` |
+| `higgsfield` | HTTP, `https://mcp.higgsfield.ai/mcp` | Image/video/audio generation | OAuth in browser |
+| `chrome-devtools` | stdio, `chrome-devtools-mcp` | Performance traces, console/network inspection, DOM debugging | none |
+
+Both browser servers run with `--isolated`, so each session gets a
+throwaway profile instead of touching your real Chrome profile.
+
+### Credentials
+
+Copy `.env.mcp.example` to `.env.mcp` (gitignored) and fill in the two
+API keys, then launch Claude Code with them exported:
+
+```bash
+cp .env.mcp.example .env.mcp
+# edit .env.mcp
+set -a && source .env.mcp && set +a
+claude
+```
+
+`.mcp.json` reads those via `${VAR:-}` expansion, so **no key is ever
+committed**. A missing key only disables that one server; the other four
+still connect. Higgsfield needs no key - run `/mcp`, select
+`higgsfield`, and authenticate in the browser.
+
+To add a machine-local server without touching the shared file, use
+`.mcp.local.json` (also gitignored) or `claude mcp add --scope local`.
+
+### Scope note
+
+These servers are development tooling only. Nothing in `src/` imports
+or calls them, and adding them does not introduce a runtime dependency,
+a network call, or an execution surface into the product itself - the
+"no execution authority" constraint described below is unchanged.
+
 ## What to click through
 
 1. Open the app - you land on the SalesOS Command Center with an

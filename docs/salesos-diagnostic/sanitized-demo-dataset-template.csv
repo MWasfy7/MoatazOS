@@ -1,0 +1,4 @@
+event_id,lead_id,occurred_at,actor_id,actor_role,channel,event_type,direction,source_ref,text_or_summary,crm_stage,contact_phone,project,developer,unit,budget,area_location,payment_plan_context
+SYNTHETIC-EVENT-001,SYNTHETIC-LEAD-001,2026-01-01T09:00:00+02:00,SYNTHETIC-SYSTEM,SYSTEM,CRM,LEAD_RECEIVED,INTERNAL,synthetic:crm:row:1,Synthetic lead received,New,,,,,,,
+SYNTHETIC-EVENT-002,SYNTHETIC-LEAD-001,2026-01-01T09:15:00+02:00,SYNTHETIC-REP-001,REP,CRM,REP_CONTACT,OUTBOUND,synthetic:crm:row:2,Synthetic rep contact,Contacted,,,,,,,
+SYNTHETIC-EVENT-003,SYNTHETIC-LEAD-001,2026-01-01T09:30:00+02:00,SYNTHETIC-BUYER-001,BUYER,WHATSAPP,BUYER_REQUEST,INBOUND,synthetic:whatsapp:message:1,Synthetic buyer request,Contacted,,,,,,,

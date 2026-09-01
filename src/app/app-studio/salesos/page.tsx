@@ -18,6 +18,9 @@ export default function SalesOSCommandCenterPage() {
         <Link href="/app-studio/salesos/pilot-evidence" className="mb-4 block rounded-md border border-sky-900 px-3 py-2 text-sm text-sky-200">
           {dict.pilotReview.open}
         </Link>
+        <Link href="/app-studio/salesos/import" className="mb-4 block rounded-md border border-emerald-900 px-3 py-2 text-sm text-emerald-200">
+          {dict.realInput.open}
+        </Link>
         <OpportunityList opportunities={OPPORTUNITIES} />
       </section>
 

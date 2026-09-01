@@ -1,12 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 3100;
+const port = Number(process.env.SALESOS_E2E_PORT ?? 3100);
 const devServerCommand =
   process.platform === "win32" ? `npm.cmd run dev -- --port ${port}` : `npm run dev -- --port ${port}`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
+  workers: 2,
+  timeout: 60 * 1000,
   reporter: "list",
   use: {
     baseURL: `http://localhost:${port}`,

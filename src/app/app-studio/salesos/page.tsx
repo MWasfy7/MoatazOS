@@ -24,6 +24,9 @@ export default function SalesOSCommandCenterPage() {
         <Link href="/app-studio/salesos/decision-engine" className="mb-4 block rounded-md border border-amber-900 px-3 py-2 text-sm text-amber-200">
           {dict.decisionEngine.open}
         </Link>
+        <Link href="/app-studio/salesos/lead-loss-report" className="mb-4 block rounded-md border border-orange-900 px-3 py-2 text-sm text-orange-200">
+          {dict.leadLossReport.open}
+        </Link>
         <OpportunityList opportunities={OPPORTUNITIES} />
       </section>
 

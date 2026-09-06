@@ -64,4 +64,14 @@ describe("Build 4 Operator Runtime UI", () => {
     expect(screen.queryByRole("button", { name: /Payment-plan commitment/i })).not.toBeInTheDocument();
     expect(container.querySelectorAll('[data-queue-section] button[aria-pressed="true"]')).toHaveLength(1);
   });
+
+  it("B4-024 records trial feedback without presenting it as buyer evidence", async () => {
+    const user = userEvent.setup();
+    renderWithLocale(<OperatorRuntime />);
+    await user.selectOptions(screen.getByLabelText("What did you observe?"), "FALSE_URGENCY");
+    await user.type(screen.getByLabelText("Optional context"), "The item did not need immediate action");
+    await user.click(screen.getByRole("button", { name: "Record trial signal" }));
+    expect(screen.getByTestId("trial-instrumentation")).toHaveTextContent("2 signals recorded");
+    expect(screen.getByTestId("evidence-contract")).not.toHaveTextContent("The item did not need immediate action");
+  });
 });

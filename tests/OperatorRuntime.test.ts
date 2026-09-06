@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   approveExperiment, attachObservation, buildCommandQueue, captureEvent, clearOperatorSession,
-  createOperatorSession, createSanitizedExport, detectExperimentCandidate, recordOverride,
+  createOperatorSession, createSanitizedExport, detectExperimentCandidate, recordOverride, recordTrialSignal,
   opportunitiesFromEvents, SYNTHETIC_OPERATOR_AS_OF, SYNTHETIC_OPERATOR_OPPORTUNITIES,
 } from "@/lib/operatorRuntime";
 
@@ -147,5 +147,22 @@ describe("Build 4 learning, performance and privacy", () => {
     expect(current.operatorProfile).toMatchObject({ operatorId: "any-operator-id", profileVersion: "operator-profile-v0", boundary: "EVIDENCE_BACKED_OPERATING_PATTERNS_NOT_PERSONALITY" });
     expect(current.operatorProfile.measures.qualificationCompleteness.value).toBeNull();
     expect(JSON.stringify(current.doctrine)).not.toContain("any-operator-id");
+  });
+
+  it("B4-021 records trial friction separately without changing evidence, priority, or doctrine", () => {
+    const before = session();
+    const after = recordTrialSignal(before, "FALSE_URGENCY", "2026-09-05T09:30:00Z", "opp-egypt-silence", "This review felt urgent when it was not.");
+    expect(after.trialSignals.at(-1)).toMatchObject({ kind: "FALSE_URGENCY", sourceClassification: "OPERATOR_TRIAL_OBSERVATION" });
+    expect(after.queue).toEqual(before.queue);
+    expect(after.opportunities).toEqual(before.opportunities);
+    expect(after.doctrine).toEqual(before.doctrine);
+  });
+
+  it("B4-022 aggregates trial usage safely without exporting operator notes or opportunity identity", () => {
+    let current = recordTrialSignal(session(), "RECOMMENDATION_ACCEPTED", "2026-09-05T09:30:00Z", "opp-egypt-strong");
+    current = recordTrialSignal(current, "WORKFLOW_ABANDONED", "2026-09-05T09:31:00Z", "opp-egypt-strong", "Used another workflow for buyer@example.test");
+    const exported = createSanitizedExport(current);
+    expect(exported.trialSummary).toMatchObject({ QUEUE_OPENED: 1, RECOMMENDATION_ACCEPTED: 1, WORKFLOW_ABANDONED: 1 });
+    expect(JSON.stringify(exported)).not.toMatch(/buyer@example|opp-egypt-strong|another workflow/i);
   });
 });

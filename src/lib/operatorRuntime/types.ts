@@ -161,6 +161,28 @@ export interface BaselinePeriod {
   comparisonLanguage: "ASSOCIATED_IMPROVEMENT_OBSERVED";
 }
 
+export type TrialSignalKind =
+  | "QUEUE_OPENED"
+  | "RECOMMENDATION_ACCEPTED"
+  | "RECOMMENDATION_OVERRIDDEN"
+  | "QUICK_CAPTURE"
+  | "INCORRECT_PRIORITY"
+  | "FALSE_URGENCY"
+  | "MISSED_IMPORTANT_OPPORTUNITY"
+  | "NO_ACTION_USEFUL"
+  | "MISSED_COMMITMENT"
+  | "WORKFLOW_ABANDONED"
+  | "FEATURE_IGNORED";
+
+export interface TrialSignal {
+  signalId: string;
+  kind: TrialSignalKind;
+  occurredAt: string;
+  opportunityId?: string;
+  note?: string;
+  sourceClassification: "OPERATOR_TRIAL_OBSERVATION";
+}
+
 export interface OperatorSession {
   sessionId: string;
   operatorId: string;
@@ -175,6 +197,7 @@ export interface OperatorSession {
   performance: PerformanceLedger;
   operatorProfile: OperatorProfile;
   baseline: BaselinePeriod;
+  trialSignals: readonly TrialSignal[];
   leadLossReport?: LeadLossReport;
 }
 
@@ -188,6 +211,7 @@ export interface SanitizedOperatorExport {
   decisionDiscipline: Record<string, MetricValue>;
   leadLossSummary?: Record<string, { numerator: number; denominator: number }>;
   unresolvedContradictions: number;
+  trialSummary: Record<TrialSignalKind, number>;
   limitations: readonly string[];
   insufficientEvidence: readonly string[];
 }

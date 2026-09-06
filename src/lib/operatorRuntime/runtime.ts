@@ -5,6 +5,7 @@ import type {
   BaselinePeriod, CommandQueueItem, DoctrineItem, EvidenceContract, ExperimentCandidate,
   MetricValue, OperatorOpportunity, OperatorPattern, OperatorProfile, OperatorSession, OverrideRecord,
   PerformanceLedger, PostDecisionObservation, QuickCaptureInput, SanitizedOperatorExport,
+  TrialSignal, TrialSignalKind,
 } from "./types";
 import { snapshotRecommendation } from "./types";
 
@@ -26,6 +27,7 @@ export function createOperatorSession(
     queue: buildCommandQueue(opportunities, generatedAt),
     overrides: [], observations: [], patterns: [], doctrine: initialDoctrine(generatedAt), experiments: [],
     performance: emptyPerformance(), operatorProfile: emptyProfile(operatorId), baseline,
+    trialSignals: [trialSignal("QUEUE_OPENED", generatedAt, [], undefined)],
   };
   return recalculate(session);
 }
@@ -143,7 +145,13 @@ export function captureEvent(session: OperatorSession, input: QuickCaptureInput)
   const opportunities = session.opportunities.map((item) => item.opportunityId === input.opportunityId
     ? { ...item, events: [...item.events, event], decision: buildDecisionSequence([...item.events, event]) }
     : item);
-  return recalculate({ ...session, generatedAt: event.occurredAt, opportunities, queue: buildCommandQueue(opportunities, event.occurredAt) });
+  return recalculate({
+    ...session,
+    generatedAt: event.occurredAt,
+    opportunities,
+    queue: buildCommandQueue(opportunities, event.occurredAt),
+    trialSignals: [...session.trialSignals, trialSignal("QUICK_CAPTURE", event.occurredAt, session.trialSignals, input.opportunityId)],
+  });
 }
 
 export function recordOverride(session: OperatorSession, opportunityId: string, operatorDecision: OverrideRecord["operatorDecision"], overrideReason: string, intendedAction: string, occurredAt: string): OperatorSession {
@@ -157,7 +165,26 @@ export function recordOverride(session: OperatorSession, opportunityId: string, 
     evidenceContract: cloneContract(queueItem.evidenceContract), operatorDecision, overrideReason: overrideReason.trim(),
     intendedAction: intendedAction.trim(), occurredAt: new Date(occurredAt).toISOString(), policyVersion: snapshot.policyVersion,
   };
-  return recalculate({ ...session, overrides: [...session.overrides, record] });
+  return recalculate({
+    ...session,
+    overrides: [...session.overrides, record],
+    trialSignals: [...session.trialSignals, trialSignal("RECOMMENDATION_OVERRIDDEN", record.occurredAt, session.trialSignals, opportunityId)],
+  });
+}
+
+export function recordTrialSignal(
+  session: OperatorSession,
+  kind: Exclude<TrialSignalKind, "QUEUE_OPENED" | "RECOMMENDATION_OVERRIDDEN" | "QUICK_CAPTURE">,
+  occurredAt: string,
+  opportunityId?: string,
+  note?: string,
+): OperatorSession {
+  if (!validTime(occurredAt)) return session;
+  if (opportunityId && !session.opportunities.some((item) => item.opportunityId === opportunityId)) return session;
+  return recalculate({
+    ...session,
+    trialSignals: [...session.trialSignals, trialSignal(kind, occurredAt, session.trialSignals, opportunityId, note)],
+  });
 }
 
 export function attachObservation(session: OperatorSession, overrideId: string, observation: Omit<PostDecisionObservation, "observationId" | "overrideId" | "causalConclusion">): OperatorSession {
@@ -206,6 +233,7 @@ export function createSanitizedExport(session: OperatorSession): SanitizedOperat
       chasingViolations: pickMetric(leadLoss.chasingViolations), contradictoryEvidence: pickMetric(leadLoss.contradictoryEvidence),
     } : undefined,
     unresolvedContradictions: session.opportunities.filter((item) => item.decision.current.decisionState === "CONTRADICTORY_EVIDENCE").length,
+    trialSummary: trialSummary(session.trialSignals),
     limitations: ["Descriptive operator-session evidence only; no causal, ROI, conversion-uplift, or correctness claim.", "Raw events, identities, notes, phone numbers, emails, and source references are excluded."],
     insufficientEvidence: session.opportunities.filter((item) => item.decision.current.decisionState === "INSUFFICIENT_EVIDENCE").map(() => "An opportunity remains insufficient; identifying details are suppressed."),
   };
@@ -218,12 +246,34 @@ export function exportAsMarkdown(value: SanitizedOperatorExport): string {
     ``, `## Command Queue`, ...Object.entries(value.commandQueueSummary).map(([key, count]) => `- ${key}: ${count}`),
     ``, `## Decision discipline`, ...Object.entries(value.decisionDiscipline).map(([key, metric]) => `- ${key}: ${metric.numerator} / ${metric.denominator}${metric.value === null ? " (insufficient evidence)" : ""}`),
     ``, `## Unresolved contradictions`, `${value.unresolvedContradictions}`,
+    ``, `## Seven-day trial signals`, ...Object.entries(value.trialSummary).map(([key, count]) => `- ${key}: ${count}`),
     ``, `## Limitations`, ...value.limitations.map((item) => `- ${item}`),
     ``, `## Insufficient evidence`, ...(value.insufficientEvidence.length ? value.insufficientEvidence.map((item) => `- ${item}`) : ["- None in the current bounded decision set."]),
   ].join("\n");
 }
 
 export function clearOperatorSession(): null { return null; }
+
+function trialSignal(kind: TrialSignalKind, occurredAt: string, existing: readonly TrialSignal[], opportunityId?: string, note?: string): TrialSignal {
+  return {
+    signalId: `trial-${stableHash(`${kind}|${occurredAt}|${existing.length}`)}`,
+    kind,
+    occurredAt: new Date(occurredAt).toISOString(),
+    opportunityId,
+    note: note?.trim() || undefined,
+    sourceClassification: "OPERATOR_TRIAL_OBSERVATION",
+  };
+}
+
+function trialSummary(signals: readonly TrialSignal[]): Record<TrialSignalKind, number> {
+  const summary: Record<TrialSignalKind, number> = {
+    QUEUE_OPENED: 0, RECOMMENDATION_ACCEPTED: 0, RECOMMENDATION_OVERRIDDEN: 0, QUICK_CAPTURE: 0,
+    INCORRECT_PRIORITY: 0, FALSE_URGENCY: 0, MISSED_IMPORTANT_OPPORTUNITY: 0, NO_ACTION_USEFUL: 0,
+    MISSED_COMMITMENT: 0, WORKFLOW_ABANDONED: 0, FEATURE_IGNORED: 0,
+  };
+  signals.forEach((signal) => { summary[signal.kind] += 1; });
+  return summary;
+}
 
 function recalculate(session: OperatorSession): OperatorSession {
   const performanceLedger = performance(session);

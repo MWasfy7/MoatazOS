@@ -6,13 +6,15 @@ import { RealInputWorkspace } from "@/components/salesos/RealInputWorkspace";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import {
   attachObservation, captureEvent, clearOperatorSession, createOperatorSession, createSanitizedExport,
-  detectExperimentCandidate, exportAsMarkdown, opportunitiesFromEvents, recordOverride, SYNTHETIC_OPERATOR_AS_OF,
-  SYNTHETIC_OPERATOR_OPPORTUNITIES, type CaptureKind, type OperatorSession, type QueueSection,
+  detectExperimentCandidate, exportAsMarkdown, opportunitiesFromEvents, recordOverride, recordTrialSignal,
+  SYNTHETIC_OPERATOR_AS_OF, SYNTHETIC_OPERATOR_OPPORTUNITIES, type CaptureKind, type OperatorSession,
+  type QueueSection, type TrialSignalKind,
 } from "@/lib/operatorRuntime";
 import { maskPii } from "@/lib/realInput";
 
 const SECTIONS: QueueSection[] = ["ACT_NOW", "COMMITMENTS_DUE", "REVIEW", "WAIT_PROTECTED", "AT_RISK_NEGLECT"];
 const CAPTURE_KINDS: CaptureKind[] = ["CLIENT_CALLED", "CLIENT_REPLIED", "MEETING_HAPPENED", "CLIENT_REQUESTED_OPTIONS", "CLIENT_POSTPONED", "BUDGET_CLARIFIED", "PARTNER_APPROVAL_REQUIRED", "PROMISED_FOLLOWUP", "SELLER_COMMITMENT", "OBJECTION", "EXPLICIT_REJECTION", "NEW_TIMELINE", "MEETING_SCHEDULED", "EOI", "RESERVATION", "OPERATOR_NOTE"];
+const MANUAL_TRIAL_SIGNALS: Exclude<TrialSignalKind, "QUEUE_OPENED" | "RECOMMENDATION_OVERRIDDEN" | "QUICK_CAPTURE">[] = ["RECOMMENDATION_ACCEPTED", "INCORRECT_PRIORITY", "FALSE_URGENCY", "MISSED_IMPORTANT_OPPORTUNITY", "NO_ACTION_USEFUL", "MISSED_COMMITMENT", "WORKFLOW_ABANDONED", "FEATURE_IGNORED"];
 
 export function OperatorRuntime() {
   const { dict } = useLocale();
@@ -24,6 +26,8 @@ export function OperatorRuntime() {
   const [overrideReason, setOverrideReason] = useState("");
   const [intendedAction, setIntendedAction] = useState("");
   const [exportMode, setExportMode] = useState<"JSON" | "MARKDOWN" | null>(null);
+  const [trialKind, setTrialKind] = useState<(typeof MANUAL_TRIAL_SIGNALS)[number]>("RECOMMENDATION_ACCEPTED");
+  const [trialNote, setTrialNote] = useState("");
 
   const queueItem = session?.queue.find((item) => item.opportunityId === selectedId) ?? session?.queue[0];
   const opportunity = session?.opportunities.find((item) => item.opportunityId === queueItem?.opportunityId);
@@ -159,9 +163,22 @@ export function OperatorRuntime() {
         </details>
       </section>
 
+      <section className="rounded-2xl border border-amber-900/60 bg-amber-950/10 p-5" data-testid="trial-instrumentation">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><p className="text-xs uppercase tracking-widest text-amber-300">{copy.trialEyebrow}</p><h2 className="mt-2 text-xl font-semibold text-white">{copy.trialTitle}</h2></div>
+          <span className="rounded-full border border-amber-900 px-3 py-1 text-xs text-amber-200">{session.trialSignals.length} {copy.trialSignalsRecorded}</span>
+        </div>
+        <p className="mt-2 max-w-3xl text-xs leading-5 text-neutral-400">{copy.trialBoundary}</p>
+        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_auto]">
+          <label className="text-xs text-neutral-400">{copy.trialSignal}<select value={trialKind} onChange={(event) => setTrialKind(event.target.value as typeof trialKind)} className="mt-2 min-h-11 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-sm text-neutral-100">{MANUAL_TRIAL_SIGNALS.map((kind) => <option key={kind} value={kind}>{copy.trialKinds[kind]}</option>)}</select></label>
+          <label className="text-xs text-neutral-400">{copy.trialNote}<input dir="auto" value={trialNote} onChange={(event) => setTrialNote(event.target.value)} className="mt-2 min-h-11 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-sm text-neutral-100" /></label>
+          <button type="button" onClick={() => { setSession((current) => current ? recordTrialSignal(current, trialKind, new Date().toISOString(), queueItem?.opportunityId, trialNote) : current); setTrialNote(""); }} className="min-h-11 self-end rounded-lg bg-amber-400 px-4 text-sm font-semibold text-neutral-950">{copy.recordTrialSignal}</button>
+        </div>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-[1fr_auto]">
         <article className="rounded-2xl border border-neutral-800 bg-neutral-950 p-5"><h2 className="font-semibold text-white">{copy.sanitizedExport}</h2><p className="mt-2 text-xs text-neutral-400">{copy.exportBoundary}</p><div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => setExportMode("JSON")} className="min-h-11 rounded-lg border border-sky-800 px-4 text-sm text-sky-200">{copy.previewJson}</button><button type="button" onClick={() => setExportMode("MARKDOWN")} className="min-h-11 rounded-lg border border-sky-800 px-4 text-sm text-sky-200">{copy.previewMarkdown}</button>{exportMode ? <a download={`salesos-${session.sessionId}.${exportMode === "JSON" ? "json" : "md"}`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(exportText)}`} className="flex min-h-11 items-center rounded-lg bg-sky-400 px-4 text-sm font-semibold text-neutral-950">{copy.download}</a> : null}</div>{exportMode ? <pre data-testid="sanitized-export" className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border border-neutral-800 bg-black p-3 text-[11px] text-neutral-300" dir="ltr">{exportText}</pre> : null}</article>
-        <button type="button" onClick={() => { setSession(clearOperatorSession()); setExportMode(null); setNote(""); setOverrideReason(""); setIntendedAction(""); }} className="min-h-14 rounded-2xl border border-rose-900 bg-rose-950/20 px-6 text-sm font-semibold text-rose-200">{copy.clearSession}</button>
+        <button type="button" onClick={() => { setSession(clearOperatorSession()); setExportMode(null); setNote(""); setOverrideReason(""); setIntendedAction(""); setTrialNote(""); }} className="min-h-14 rounded-2xl border border-rose-900 bg-rose-950/20 px-6 text-sm font-semibold text-rose-200">{copy.clearSession}</button>
       </section>
     </main>
   );

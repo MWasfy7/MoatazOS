@@ -18,9 +18,10 @@ interface PreviewState {
   fileName: string;
   preview: ImportPreview;
   realEstateContextCount: number;
+  result?: ImportResult;
 }
 
-export function RealInputWorkspace() {
+export function RealInputWorkspace({ onAccepted }: { onAccepted?: (result: ImportResult) => void } = {}) {
   const { dict } = useLocale();
   const [kind, setKind] = useState<InputKind>("CRM");
   const [organizationId, setOrganizationId] = useState("preview-org");
@@ -52,6 +53,7 @@ export function RealInputWorkspace() {
       fileName,
       preview: createImportPreview(result),
       realEstateContextCount: Object.keys(result.realEstateByEventId).length,
+      result,
     });
   };
 
@@ -163,7 +165,7 @@ export function RealInputWorkspace() {
               <p className="max-w-sm">{dict.realInput.emptyPreview}</p>
             </div>
           ) : (
-            <ImportPreviewPanel state={state} />
+            <ImportPreviewPanel state={state} onAccepted={onAccepted} />
           )}
         </div>
       </div>
@@ -186,7 +188,7 @@ function TextField({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
-function ImportPreviewPanel({ state }: { state: PreviewState }) {
+function ImportPreviewPanel({ state, onAccepted }: { state: PreviewState; onAccepted?: (result: ImportResult) => void }) {
   const { dict } = useLocale();
   const { preview } = state;
   return (
@@ -241,6 +243,11 @@ function ImportPreviewPanel({ state }: { state: PreviewState }) {
         </section>
       ) : null}
       <p className="border-t border-neutral-800 pt-3 text-xs text-neutral-500">{dict.realInput.noDecisionAuthority}</p>
+      {onAccepted && state.result?.status === "ACCEPTED" ? (
+        <button type="button" onClick={() => onAccepted(state.result!)} className="min-h-11 w-full rounded-md bg-emerald-400 px-4 text-sm font-semibold text-neutral-950">
+          {dict.operatorRuntime.useAcceptedInput}
+        </button>
+      ) : null}
     </div>
   );
 }

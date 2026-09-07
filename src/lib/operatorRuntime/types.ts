@@ -4,6 +4,21 @@ import type { NormalizedSalesEvent } from "@/lib/realInput";
 
 export type QueueSection = "ACT_NOW" | "COMMITMENTS_DUE" | "REVIEW" | "WAIT_PROTECTED" | "AT_RISK_NEGLECT";
 export type Recommendation = "ACT" | "WAIT" | "REVIEW";
+export type QueueReasonCode =
+  | "CURRENT_BUYER_SIGNAL"
+  | "OVERDUE_SELLER_COMMITMENT"
+  | "ACTIVE_BUYER_PAUSE"
+  | "CONTRADICTORY_EVIDENCE"
+  | "AGING_EVIDENCE_GAP"
+  | "INSUFFICIENT_EVIDENCE"
+  | "STALE_BUYER_SIGNAL"
+  | "STALE_SELLER_COMMITMENT"
+  | "FUTURE_EVIDENCE_EXCLUDED";
+
+export interface EvidenceExclusion {
+  sourceRef: string;
+  reason: "FUTURE_TIMESTAMP";
+}
 
 export interface EvidenceContract {
   recommendation: Recommendation;
@@ -15,6 +30,7 @@ export interface EvidenceContract {
   uncertainty: readonly string[];
   governingPolicy: string;
   reevaluationConditions: readonly string[];
+  excludedEvidence: readonly EvidenceExclusion[];
 }
 
 export interface OperatorOpportunity {
@@ -38,6 +54,7 @@ export interface CommandQueueItem {
   ignoreRisk: string;
   reevaluateWhen: readonly string[];
   evidenceContract: EvidenceContract;
+  reasonCode: QueueReasonCode;
 }
 
 export type CaptureKind =

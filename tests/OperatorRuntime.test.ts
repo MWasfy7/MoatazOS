@@ -46,6 +46,66 @@ describe("Build 4 command queue", () => {
   it("B4-006 is deterministic for identical inputs", () => {
     expect(buildCommandQueue(SYNTHETIC_OPERATOR_OPPORTUNITIES, SYNTHETIC_OPERATOR_AS_OF)).toEqual(buildCommandQueue(SYNTHETIC_OPERATOR_OPPORTUNITIES, SYNTHETIC_OPERATOR_AS_OF));
   });
+
+  it("B4-R01 keeps buyer restraint protected when one or more seller commitments are overdue", () => {
+    const protectedOpportunity = SYNTHETIC_OPERATOR_OPPORTUNITIES.find((item) => item.opportunityId === "opp-gcc-protected")!;
+    const commitmentTemplate = SYNTHETIC_OPERATOR_OPPORTUNITIES.find((item) => item.opportunityId === "opp-egypt-overdue")!.events.at(-1)!;
+    const commitments = [1, 2].map((index) => ({
+      ...commitmentTemplate,
+      eventId: `protected-commitment-${index}`,
+      occurredAt: `2026-09-02T1${index}:00:00.000Z`,
+      sourceRef: `synthetic:protected-commitment-${index}`,
+      metadata: { ...commitmentTemplate.metadata, dueAt: "2026-09-04T12:00:00.000Z" },
+    }));
+    const item = buildCommandQueue([{ ...protectedOpportunity, events: [...protectedOpportunity.events, ...commitments] }], SYNTHETIC_OPERATOR_AS_OF)[0]!;
+    expect(item).toMatchObject({ section: "WAIT_PROTECTED", reasonCode: "ACTIVE_BUYER_PAUSE", evidenceContract: { recommendation: "WAIT" } });
+    expect(item.whyNow).toMatch(/seller obligations cannot authorize buyer contact/i);
+    expect(buildCommandQueue([{ ...protectedOpportunity, events: [...protectedOpportunity.events, ...commitments] }], "2026-09-13T09:00:00.000Z")[0]).toMatchObject({ section: "WAIT_PROTECTED", reasonCode: "ACTIVE_BUYER_PAUSE" });
+  });
+
+  it("B4-R02 allows valid new buyer evidence to supersede wait while preserving restraint history", () => {
+    const protectedOpportunity = SYNTHETIC_OPERATOR_OPPORTUNITIES.find((item) => item.opportunityId === "opp-gcc-protected")!;
+    const buyerTemplate = SYNTHETIC_OPERATOR_OPPORTUNITIES.find((item) => item.opportunityId === "opp-egypt-strong")!.events.at(-1)!;
+    const request = { ...buyerTemplate, eventId: "buyer-after-pause", occurredAt: "2026-09-05T08:30:00.000Z", sourceRef: "synthetic:buyer-after-pause", textOrSummary: "Can you send me the options today?" };
+    const current = createOperatorSession("operator-synthetic", [{ ...protectedOpportunity, events: [...protectedOpportunity.events, request] }], SYNTHETIC_OPERATOR_AS_OF);
+    expect(current.queue[0]).toMatchObject({ section: "ACT_NOW", reasonCode: "CURRENT_BUYER_SIGNAL" });
+    expect(current.opportunities[0]!.decision.snapshots.some((snapshot) => snapshot.decisionState === "NO_ACTION")).toBe(true);
+    expect(current.opportunities[0]!.decision.current.historicalFindings).not.toHaveLength(0);
+  });
+
+  it("B4-R03 excludes materially future evidence from current urgency and explains the exclusion", () => {
+    const template = SYNTHETIC_OPERATOR_OPPORTUNITIES.find((item) => item.opportunityId === "opp-egypt-strong")!;
+    const received = template.events[0]!;
+    const futureRequest = { ...template.events[1]!, eventId: "future-request", occurredAt: "2026-09-05T09:10:00.001Z", sourceRef: "synthetic:future-request" };
+    const laterFutureRequest = { ...futureRequest, eventId: "later-future-request", occurredAt: "2026-09-06T09:00:00.000Z", sourceRef: "synthetic:later-future-request" };
+    const current = createOperatorSession("operator-synthetic", [{ ...template, events: [received, futureRequest, laterFutureRequest] }], SYNTHETIC_OPERATOR_AS_OF);
+    expect(current.opportunities[0]!.decision.current.decisionState).toBe("INSUFFICIENT_EVIDENCE");
+    expect(current.queue[0]).toMatchObject({ section: "REVIEW", reasonCode: "FUTURE_EVIDENCE_EXCLUDED", evidenceContract: { freshness: "CURRENT" } });
+    expect(current.queue[0]!.evidenceContract.excludedEvidence).toEqual([
+      { sourceRef: "synthetic:future-request", reason: "FUTURE_TIMESTAMP" },
+      { sourceRef: "synthetic:later-future-request", reason: "FUTURE_TIMESTAMP" },
+    ]);
+  });
+
+  it("B4-R04 accepts evidence exactly at the bounded clock tolerance but excludes evidence beyond it", () => {
+    const template = SYNTHETIC_OPERATOR_OPPORTUNITIES.find((item) => item.opportunityId === "opp-egypt-strong")!;
+    const received = template.events[0]!;
+    const atBoundary = { ...template.events[1]!, eventId: "boundary-request", occurredAt: "2026-09-05T09:05:00.000Z", sourceRef: "synthetic:boundary-request" };
+    const beyondBoundary = { ...template.events[1]!, eventId: "beyond-request", occurredAt: "2026-09-05T09:05:00.001Z", sourceRef: "synthetic:beyond-request" };
+    expect(createOperatorSession("operator", [{ ...template, events: [received, atBoundary] }], SYNTHETIC_OPERATOR_AS_OF).queue[0]!.section).toBe("ACT_NOW");
+    expect(createOperatorSession("operator", [{ ...template, events: [received, beyondBoundary] }], SYNTHETIC_OPERATOR_AS_OF).queue[0]!.reasonCode).toBe("FUTURE_EVIDENCE_EXCLUDED");
+  });
+
+  it("B4-R05 decays stale buyer and seller urgency into explicit review", () => {
+    const strong = SYNTHETIC_OPERATOR_OPPORTUNITIES.find((item) => item.opportunityId === "opp-egypt-strong")!;
+    const overdue = SYNTHETIC_OPERATOR_OPPORTUNITIES.find((item) => item.opportunityId === "opp-egypt-overdue")!;
+    const queue = buildCommandQueue([strong, overdue], "2026-09-13T09:00:00.000Z");
+    expect(queue.find((item) => item.opportunityId === strong.opportunityId)).toMatchObject({ section: "REVIEW", reasonCode: "STALE_BUYER_SIGNAL", evidenceContract: { recommendation: "REVIEW" } });
+    expect(queue.find((item) => item.opportunityId === overdue.opportunityId)).toMatchObject({ section: "REVIEW", reasonCode: "STALE_SELLER_COMMITMENT" });
+    const commitmentTemplate = overdue.events.at(-1)!;
+    const staleCommitment = { ...commitmentTemplate, eventId: "old-commitment", occurredAt: "2026-08-15T09:00:00.000Z", sourceRef: "synthetic:old-commitment", metadata: { ...commitmentTemplate.metadata, dueAt: "2026-08-16T09:00:00.000Z" } };
+    expect(buildCommandQueue([{ ...strong, events: [staleCommitment, ...strong.events] }], SYNTHETIC_OPERATOR_AS_OF)[0]).toMatchObject({ section: "ACT_NOW", reasonCode: "CURRENT_BUYER_SIGNAL" });
+  });
 });
 
 describe("Build 4 capture and immutable disagreement history", () => {
@@ -61,6 +121,18 @@ describe("Build 4 capture and immutable disagreement history", () => {
   it("B4-008 rejects malformed capture timestamps without changing the session", () => {
     const before = session();
     expect(captureEvent(before, { opportunityId: "opp-egypt-strong", kind: "CLIENT_REPLIED", occurredAt: "bad", operatorId: "operator-synthetic" })).toBe(before);
+  });
+
+  it("B4-R06 keeps internal notes out of neglect engagement and preserves the session clock", () => {
+    const before = session();
+    const unrelatedBefore = structuredClone(before.queue.find((item) => item.opportunityId === "opp-gcc-protected"));
+    const after = captureEvent(before, { opportunityId: "opp-egypt-silence", kind: "OPERATOR_NOTE", occurredAt: SYNTHETIC_OPERATOR_AS_OF, operatorId: "operator-synthetic", note: "Need to call tomorrow." });
+    expect(after.generatedAt).toBe(before.generatedAt);
+    expect(after.queue.find((item) => item.opportunityId === "opp-egypt-silence")).toMatchObject({ section: "AT_RISK_NEGLECT", reasonCode: "AGING_EVIDENCE_GAP" });
+    expect(after.queue.find((item) => item.opportunityId === "opp-gcc-protected")).toEqual(unrelatedBefore);
+    expect(after.opportunities.find((item) => item.opportunityId === "opp-egypt-silence")!.events.at(-1)).toMatchObject({ eventType: "OPERATOR_NOTE", direction: "INTERNAL" });
+    const protectedAfterNote = captureEvent(before, { opportunityId: "opp-gcc-protected", kind: "OPERATOR_NOTE", occurredAt: SYNTHETIC_OPERATOR_AS_OF, operatorId: "operator-synthetic", note: "Review the internal file." });
+    expect(protectedAfterNote.queue.find((item) => item.opportunityId === "opp-gcc-protected")).toMatchObject({ section: "WAIT_PROTECTED", reasonCode: "ACTIVE_BUYER_PAUSE" });
   });
 
   it("B4-009 records multiple overrides by append and preserves the original recommendation", () => {

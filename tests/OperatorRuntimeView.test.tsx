@@ -74,4 +74,21 @@ describe("Build 4 Operator Runtime UI", () => {
     expect(screen.getByTestId("trial-instrumentation")).toHaveTextContent("2 signals recorded");
     expect(screen.getByTestId("evidence-contract")).not.toHaveTextContent("The item did not need immediate action");
   });
+
+  it("B4-R07 renders the machine reason selected for every queue section", async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithLocale(<OperatorRuntime />);
+    const expectations = [
+      ["CURRENT_BUYER_SIGNAL", "A fresh attributable buyer signal is decision-grade."],
+      ["OVERDUE_SELLER_COMMITMENT", "No later completion record closes the current commitment."],
+      ["CONTRADICTORY_EVIDENCE", "The current contradiction remains unresolved."],
+      ["ACTIVE_BUYER_PAUSE", "seller obligations cannot authorize contact"],
+      ["AGING_EVIDENCE_GAP", "silence still proves no intent"],
+    ] as const;
+    for (const [reason, explanation] of expectations) {
+      const button = container.querySelector<HTMLButtonElement>(`[data-queue-reason="${reason}"]`)!;
+      await user.click(button);
+      expect(screen.getByTestId("decision-workspace")).toHaveTextContent(explanation);
+    }
+  });
 });

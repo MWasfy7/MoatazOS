@@ -93,8 +93,8 @@ export function OperatorRuntime() {
               <section key={section} data-queue-section={section} className="min-h-32 rounded-2xl border border-neutral-800 bg-neutral-950/80 p-3">
                 <div className="flex items-center justify-between gap-2"><h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-300">{copy.sections[section]}</h3><span className="rounded-full bg-neutral-800 px-2 py-0.5 text-[10px] text-neutral-400">{items.length}</span></div>
                 {items.length === 0 ? <p className="mt-4 text-xs text-neutral-600">{copy.noArtificialItems}</p> : <ul className="mt-3 space-y-2">{items.map((item) => (
-                  <li key={item.queueItemId}><button type="button" onClick={() => setSelectedId(item.opportunityId)} aria-pressed={queueItem?.opportunityId === item.opportunityId} className={`w-full rounded-xl border p-3 text-start ${queueItem?.opportunityId === item.opportunityId ? "border-amber-700 bg-amber-950/30" : "border-neutral-800 bg-neutral-900/60"}`}>
-                    <span className="block text-sm font-medium text-neutral-100" dir="auto">{item.displayLabel}</span><span className="mt-2 block text-xs leading-5 text-neutral-400">{copy.queueWhy[section]}</span>
+                  <li key={item.queueItemId}><button type="button" data-queue-reason={item.reasonCode} onClick={() => setSelectedId(item.opportunityId)} aria-pressed={queueItem?.opportunityId === item.opportunityId} className={`w-full rounded-xl border p-3 text-start ${queueItem?.opportunityId === item.opportunityId ? "border-amber-700 bg-amber-950/30" : "border-neutral-800 bg-neutral-900/60"}`}>
+                    <span className="block text-sm font-medium text-neutral-100" dir="auto">{item.displayLabel}</span><span className="mt-2 block text-xs leading-5 text-neutral-400">{copy.queueReasonWhy[item.reasonCode]}</span>
                   </button></li>
                 ))}</ul>}
               </section>
@@ -109,8 +109,8 @@ export function OperatorRuntime() {
             <article className="rounded-2xl border border-neutral-800 bg-neutral-950 p-5">
               <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-widest text-sky-300">{copy.decide}</p><h2 className="mt-2 text-2xl font-semibold text-white" dir="auto">{queueItem.displayLabel}</h2></div><span data-decision-state={snapshot.decisionState} className="rounded-full border border-sky-800 bg-sky-950/40 px-3 py-1 text-xs text-sky-200">{dict.decisionState[snapshot.decisionState]}</span></div>
               <dl className="mt-5 grid gap-3 sm:grid-cols-2">
-                <Detail label={copy.why} value={copy.queueWhy[queueItem.section]} />
-                <Detail label={copy.whyNow} value={copy.queueNow[queueItem.section]} />
+                <Detail label={copy.why} value={copy.queueReasonWhy[queueItem.reasonCode]} />
+                <Detail label={copy.whyNow} value={copy.queueReasonNow[queueItem.reasonCode]} />
                 <Detail label={copy.whatChanged} value={snapshot.priorSnapshotId ? copy.lineageChanged : copy.firstSnapshot} />
                 <Detail label={copy.ignoreRisk} value={copy.queueRisk[queueItem.section]} />
               </dl>
@@ -123,6 +123,7 @@ export function OperatorRuntime() {
               <List title={copy.primaryEvidence} values={queueItem.evidenceContract.primaryEvidence.map(maskPii)} mono empty={copy.none} />
               <List title={copy.contradictions} values={queueItem.evidenceContract.contradictions.map(maskPii)} mono empty={copy.none} />
               <List title={copy.missingInformation} values={queueItem.evidenceContract.missingInformation.map(() => copy.decisionGradeMissing)} empty={copy.none} />
+              <List title={copy.excludedEvidence} values={queueItem.evidenceContract.excludedEvidence.map((item) => `${maskPii(item.sourceRef)} — ${copy.futureTimestampExcluded}`)} mono empty={copy.none} />
               <p className="mt-4 rounded-lg border border-rose-900/60 bg-rose-950/20 px-3 py-2 text-xs text-rose-200">{copy.noExecutionAuthority}</p>
             </article>
           </section>

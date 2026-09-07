@@ -10,12 +10,15 @@ import type {
 import { snapshotRecommendation } from "./types";
 
 const DAY = 86_400_000;
+export const FUTURE_EVIDENCE_TOLERANCE_MS = 5 * 60_000;
+const URGENCY_FRESHNESS_MS = 7 * DAY;
 
 export function createOperatorSession(
   operatorId: string,
   opportunities: readonly OperatorOpportunity[],
   generatedAt: string,
 ): OperatorSession {
+  const preparedOpportunities = opportunities.map((opportunity) => prepareOpportunity(opportunity, generatedAt));
   const baseline: BaselinePeriod = {
     status: "OBSERVATION_PERIOD", startedAt: generatedAt, minimumDays: 7, observedDays: 1,
     comparisonLanguage: "ASSOCIATED_IMPROVEMENT_OBSERVED",
@@ -23,8 +26,8 @@ export function createOperatorSession(
   const session: OperatorSession = {
     sessionId: `operator-run-${stableHash(`runtime|${generatedAt}|${opportunities.length}`)}`,
     operatorId, generatedAt,
-    opportunities: opportunities.map(cloneOpportunity),
-    queue: buildCommandQueue(opportunities, generatedAt),
+    opportunities: preparedOpportunities,
+    queue: buildCommandQueue(preparedOpportunities, generatedAt),
     overrides: [], observations: [], patterns: [], doctrine: initialDoctrine(generatedAt), experiments: [],
     performance: emptyPerformance(), operatorProfile: emptyProfile(operatorId), baseline,
     trialSignals: [trialSignal("QUEUE_OPENED", generatedAt, [], undefined)],
@@ -51,62 +54,79 @@ export function opportunitiesFromEvents(events: readonly NormalizedSalesEvent[])
 }
 
 export function buildCommandQueue(opportunities: readonly OperatorOpportunity[], asOf: string): CommandQueueItem[] {
-  return opportunities.map((opportunity) => queueItem(opportunity, asOf)).sort((a, b) => b.priority - a.priority || a.queueItemId.localeCompare(b.queueItemId));
+  return opportunities.map((opportunity) => queueItem(prepareOpportunity(opportunity, asOf), asOf)).sort((a, b) => b.priority - a.priority || a.queueItemId.localeCompare(b.queueItemId));
 }
 
 function queueItem(opportunity: OperatorOpportunity, asOf: string): CommandQueueItem {
   const snapshot = opportunity.decision.current;
-  const overdueCommitment = latestEvent(opportunity.events, ["PROMISED_FOLLOWUP", "SELLER_COMMITMENT"]);
-  const fulfilled = latestEvent(opportunity.events, ["COMMITMENT_COMPLETED"]);
+  const eligibleEvents = opportunity.events.filter((event) => isEvidenceUsableAt(event.occurredAt, asOf));
+  const overdueCommitment = latestEvent(eligibleEvents, ["PROMISED_FOLLOWUP", "SELLER_COMMITMENT"]);
+  const fulfilled = latestEvent(eligibleEvents, ["COMMITMENT_COMPLETED"]);
   const commitmentDueAt = overdueCommitment?.metadata.dueAt ?? overdueCommitment?.occurredAt;
   const isOverdue = Boolean(overdueCommitment && commitmentDueAt && validTime(commitmentDueAt) && Date.parse(commitmentDueAt) < Date.parse(asOf) && (!fulfilled || fulfilled.occurredAt < overdueCommitment.occurredAt));
-  const latestObserved = [...opportunity.events].filter((event) => validTime(event.occurredAt)).sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)).at(-1);
+  const isStaleCommitment = Boolean(isOverdue && commitmentDueAt && Date.parse(asOf) - Date.parse(commitmentDueAt) > URGENCY_FRESHNESS_MS);
+  const latestObserved = eligibleEvents.filter(isMeaningfulLeadEngagement).sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)).at(-1);
   const ageDays = latestObserved ? Math.max(0, (Date.parse(asOf) - Date.parse(latestObserved.occurredAt)) / DAY) : null;
+  const contract = evidenceContract(snapshot, opportunity.events, asOf);
+  const hasFutureExclusions = contract.excludedEvidence.length > 0;
   let section: CommandQueueItem["section"];
+  let reasonCode: CommandQueueItem["reasonCode"];
   let priority: number;
   let whyHere: string;
   let whyNow: string;
   let recommendation: string;
   let ignoreRisk: string;
 
-  if (isOverdue) {
-    section = "COMMITMENTS_DUE"; priority = 95;
+  if (snapshot.decisionState === "NO_ACTION") {
+    section = "WAIT_PROTECTED"; reasonCode = "ACTIVE_BUYER_PAUSE"; priority = 20;
+    whyHere = "An attributable buyer pause is active.";
+    whyNow = "No valid buyer-initiated reengagement has replaced the restraint; seller obligations cannot authorize buyer contact.";
+    recommendation = "Wait and preserve the restraint boundary.";
+    ignoreRisk = "Ignoring this recommendation may create observable chasing.";
+  } else if (isOverdue && !isStaleCommitment) {
+    section = "COMMITMENTS_DUE"; reasonCode = "OVERDUE_SELLER_COMMITMENT"; priority = 95;
     whyHere = "An attributable seller commitment is overdue.";
     whyNow = `The commitment due at ${commitmentDueAt} has no later completion record.`;
     recommendation = "Complete or explicitly reclassify the promised commitment.";
     ignoreRisk = "A documented seller commitment remains unmet.";
-  } else if (snapshot.decisionState === "NEXT_STEP_READY") {
-    section = "ACT_NOW"; priority = 90;
+  } else if (snapshot.decisionState === "NEXT_STEP_READY" && contract.freshness === "CURRENT") {
+    section = "ACT_NOW"; reasonCode = "CURRENT_BUYER_SIGNAL"; priority = 90;
     whyHere = "Current decision-grade buyer evidence supports a bounded next step.";
     whyNow = `The current decision became effective at ${snapshot.effectiveAt}.`;
     recommendation = "Review the evidence-backed next step and execute it outside SalesOS if appropriate.";
     ignoreRisk = "A current attributable buyer request may remain unanswered.";
-  } else if (snapshot.decisionState === "NO_ACTION") {
-    section = "WAIT_PROTECTED"; priority = 20;
-    whyHere = "An attributable buyer pause is active.";
-    whyNow = "No validated buyer-initiated reengagement has replaced the restraint.";
-    recommendation = "Wait and preserve the restraint boundary.";
-    ignoreRisk = "Ignoring this recommendation may create observable chasing.";
+  } else if (isStaleCommitment) {
+    section = "REVIEW"; reasonCode = "STALE_SELLER_COMMITMENT"; priority = 55;
+    whyHere = "A seller commitment remains unresolved, but its urgency window is stale.";
+    whyNow = "The commitment is more than seven days overdue and requires revalidation rather than permanent urgency.";
+    recommendation = "Review and reclassify the stale obligation without inferring permission to contact the buyer.";
+    ignoreRisk = "The unresolved obligation remains visible without manufacturing current urgency.";
+  } else if (snapshot.decisionState === "NEXT_STEP_READY") {
+    section = "REVIEW"; reasonCode = "STALE_BUYER_SIGNAL"; priority = 50;
+    whyHere = "Decision-grade buyer evidence exists, but it is stale for present urgency.";
+    whyNow = "The evidence is more than seven days old and must be revalidated before an immediate action recommendation.";
+    recommendation = "Revalidate the buyer signal; do not preserve ACT NOW indefinitely.";
+    ignoreRisk = "A stale signal may no longer describe the buyer's current request.";
   } else if (snapshot.decisionState === "CONTRADICTORY_EVIDENCE") {
-    section = "REVIEW"; priority = 70;
+    section = "REVIEW"; reasonCode = "CONTRADICTORY_EVIDENCE"; priority = 70;
     whyHere = "Attributable sources conflict, so a single action is not supported.";
     whyNow = "The contradiction remains unresolved in the current snapshot.";
     recommendation = "Review source provenance and resolve the contradiction before acting.";
     ignoreRisk = "A decision could be based on the wrong source state.";
   } else {
     section = ageDays !== null && ageDays >= 3 ? "AT_RISK_NEGLECT" : "REVIEW";
+    reasonCode = hasFutureExclusions ? "FUTURE_EVIDENCE_EXCLUDED" : section === "AT_RISK_NEGLECT" ? "AGING_EVIDENCE_GAP" : "INSUFFICIENT_EVIDENCE";
     priority = section === "AT_RISK_NEGLECT" ? 35 : 40;
-    whyHere = section === "AT_RISK_NEGLECT" ? "The opportunity lacks decision-grade evidence and has an aging observation window." : "Available evidence is insufficient for ACT or WAIT.";
-    whyNow = "No decision-grade buyer request, pause, or resolved contradiction is established.";
+    whyHere = hasFutureExclusions ? "Materially future-dated evidence was excluded from the current decision." : section === "AT_RISK_NEGLECT" ? "The opportunity lacks decision-grade evidence and has an aging observation window." : "Available evidence is insufficient for ACT or WAIT.";
+    whyNow = hasFutureExclusions ? "Future evidence cannot create present urgency and remains non-actionable until the runtime clock reaches it." : "No decision-grade buyer request, pause, or resolved contradiction is established.";
     recommendation = "Capture or review evidence; do not manufacture urgency from silence.";
     ignoreRisk = "The evidence gap remains unresolved; silence itself is not treated as risk proof.";
   }
 
-  const contract = evidenceContract(snapshot, opportunity.events, asOf);
   return {
     queueItemId: `queue-${stableHash(`${opportunity.opportunityId}|${snapshot.snapshotId}|${section}`)}`,
     opportunityId: opportunity.opportunityId, displayLabel: opportunity.displayLabel, section, priority,
-    whyHere, whyNow, whatChanged: snapshot.priorSnapshotId ? `Decision lineage advanced from ${snapshot.priorSnapshotId}.` : "This is the first bounded snapshot in the current lineage.",
+    whyHere, whyNow, reasonCode, whatChanged: snapshot.priorSnapshotId ? `Decision lineage advanced from ${snapshot.priorSnapshotId}.` : "This is the first bounded snapshot in the current lineage.",
     recommendation, ignoreRisk, reevaluateWhen: [...snapshot.reevaluationConditions], evidenceContract: contract,
   };
 }
@@ -116,11 +136,13 @@ export function evidenceContract(snapshot: DeterministicDecisionSnapshot, events
   const contradictions = snapshot.decisionState === "CONTRADICTORY_EVIDENCE" ? [...snapshot.evidenceRefs] : [];
   const missing = snapshot.decisionState === "INSUFFICIENT_EVIDENCE" ? ["Decision-grade attributable buyer evidence"] : [];
   const effective = Date.parse(snapshot.effectiveAt);
-  const freshness = Number.isNaN(effective) ? "UNKNOWN" : Date.parse(asOf) - effective > 7 * DAY ? "STALE" : "CURRENT";
+  const freshness = Number.isNaN(effective) || effective > Date.parse(asOf) + FUTURE_EVIDENCE_TOLERANCE_MS ? "UNKNOWN" : Date.parse(asOf) - effective > URGENCY_FRESHNESS_MS ? "STALE" : "CURRENT";
+  const snapshotRecommendationValue = snapshotRecommendation(snapshot);
   return {
-    recommendation: snapshotRecommendation(snapshot), primaryEvidence: [...snapshot.evidenceRefs], provenance,
+    recommendation: freshness === "STALE" && snapshotRecommendationValue === "ACT" ? "REVIEW" : snapshotRecommendationValue, primaryEvidence: [...snapshot.evidenceRefs], provenance,
     freshness, contradictions, missingInformation: missing, uncertainty: [...snapshot.uncertainty],
     governingPolicy: snapshot.policyVersion, reevaluationConditions: [...snapshot.reevaluationConditions],
+    excludedEvidence: events.filter((event) => isMateriallyFuture(event.occurredAt, asOf)).map((event) => ({ sourceRef: event.sourceRef, reason: "FUTURE_TIMESTAMP" as const })),
   };
 }
 
@@ -143,13 +165,12 @@ export function captureEvent(session: OperatorSession, input: QuickCaptureInput)
     },
   };
   const opportunities = session.opportunities.map((item) => item.opportunityId === input.opportunityId
-    ? { ...item, events: [...item.events, event], decision: buildDecisionSequence([...item.events, event]) }
+    ? prepareOpportunity({ ...item, events: [...item.events, event] }, session.generatedAt)
     : item);
   return recalculate({
     ...session,
-    generatedAt: event.occurredAt,
     opportunities,
-    queue: buildCommandQueue(opportunities, event.occurredAt),
+    queue: buildCommandQueue(opportunities, session.generatedAt),
     trialSignals: [...session.trialSignals, trialSignal("QUICK_CAPTURE", event.occurredAt, session.trialSignals, input.opportunityId)],
   });
 }
@@ -281,25 +302,26 @@ function recalculate(session: OperatorSession): OperatorSession {
     ...session,
     performance: performanceLedger,
     operatorProfile: profile(session, performanceLedger),
-    leadLossReport: buildLeadLossReport(buildReportCases(session.opportunities), session.generatedAt),
+    leadLossReport: buildLeadLossReport(buildReportCases(session.opportunities, session.generatedAt), session.generatedAt),
   };
 }
 
 function performance(session: OperatorSession): PerformanceLedger {
   const opps = session.opportunities;
-  const outcomes = opps.flatMap((item) => item.events).filter((event) => ["EOI", "RESERVATION", "CLOSE"].includes(event.eventType));
+  const usableEvents = opps.flatMap((item) => item.events).filter((event) => isEvidenceUsableAt(event.occurredAt, session.generatedAt));
+  const outcomes = usableEvents.filter((event) => ["EOI", "RESERVATION", "CLOSE"].includes(event.eventType));
   const act = session.queue.filter((item) => item.evidenceContract.recommendation === "ACT");
   const supported = session.queue.filter((item) => item.evidenceContract.primaryEvidence.length > 0);
-  const chasing = opps.filter((item) => item.decision.current.historicalFindings.length > 0 || observableChasingRefs(item.events).length > 0);
+  const chasing = opps.filter((item) => item.decision.current.historicalFindings.length > 0 || observableChasingRefs(item.events.filter((event) => isEvidenceUsableAt(event.occurredAt, session.generatedAt))).length > 0);
   const metric = (numerator: number, denominator: number, statement: string): MetricValue => ({ numerator, denominator, value: denominator === 0 ? null : numerator / denominator, statement });
   return {
     decisionDiscipline: {
-      nextStepSecured: metric(opps.flatMap((item) => item.events).filter((event) => event.eventType === "MEETING_SCHEDULED").length, act.length, "Observed next steps secured over evidence-backed ACT opportunities."),
+      nextStepSecured: metric(usableEvents.filter((event) => event.eventType === "MEETING_SCHEDULED").length, act.length, "Observed next steps secured over evidence-backed ACT opportunities."),
       strongSignalResponseLatency: metric(0, 0, "Response latency requires an attributable strong signal followed by an observable outbound response."),
       evidenceSupported: metric(supported.length, session.queue.length, "Share of queue recommendations with attributable primary evidence."),
       overrides: metric(session.overrides.length, session.queue.length, "Recorded material disagreements per current queue item."),
       observableChasing: metric(chasing.length, opps.length, "Observable chasing findings; not a personality or fault score."),
-      commitmentCompletion: metric(opps.flatMap((item) => item.events).filter((event) => event.eventType === "COMMITMENT_COMPLETED").length, opps.flatMap((item) => item.events).filter((event) => ["PROMISED_FOLLOWUP", "SELLER_COMMITMENT"].includes(event.eventType)).length, "Observed completed commitments over recorded commitments."),
+      commitmentCompletion: metric(usableEvents.filter((event) => event.eventType === "COMMITMENT_COMPLETED").length, usableEvents.filter((event) => ["PROMISED_FOLLOWUP", "SELLER_COMMITMENT"].includes(event.eventType)).length, "Observed completed commitments over recorded commitments."),
     },
     pipelineProgression: {
       nextStepReady: metric(act.length, opps.length, "Current opportunities with evidence-backed next-step readiness."),
@@ -316,7 +338,7 @@ function performance(session: OperatorSession): PerformanceLedger {
       closes: metric(outcomes.filter((event) => event.eventType === "CLOSE").length, opps.length, "Explicitly recorded closes only."),
       dealValue: metric(0, 0, "Deal value is unavailable unless explicitly captured as a commercial outcome."),
       commission: metric(0, 0, "Commission is unavailable unless explicitly captured."),
-      concessions: metric(opps.flatMap((item) => item.events).filter((event) => event.eventType === "CONCESSION").length, opps.length, "Explicit concession records only; no commercial judgment is inferred."),
+      concessions: metric(usableEvents.filter((event) => event.eventType === "CONCESSION").length, opps.length, "Explicit concession records only; no commercial judgment is inferred."),
     },
     learning: {
       disagreements: metric(session.overrides.length, session.queue.length, "Recorded operator disagreements; no winner is inferred."),
@@ -349,9 +371,9 @@ function profile(session: OperatorSession, ledger: PerformanceLedger): OperatorP
   };
 }
 
-function buildReportCases(opportunities: readonly OperatorOpportunity[]): LeadLossCase[] {
+function buildReportCases(opportunities: readonly OperatorOpportunity[], asOf?: string): LeadLossCase[] {
   return opportunities.map((item) => {
-    const validEvents = item.events.filter((event) => validTime(event.occurredAt));
+    const validEvents = item.events.filter((event) => validTime(event.occurredAt) && (!asOf || isEvidenceUsableAt(event.occurredAt, asOf)));
     const observedThrough = [...validEvents].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)).at(-1)?.occurredAt ?? "UNAVAILABLE";
     const sourcePairs = new Map<string, "CRM_CSV" | "WHATSAPP_EXPORT">();
     validEvents.forEach((event) => {
@@ -369,9 +391,9 @@ function buildReportCases(opportunities: readonly OperatorOpportunity[]): LeadLo
       freshness: { state: "CURRENT", observedThrough },
       sources: [...sourcePairs].map(([sourceRef, sourceType]) => ({ sourceRef, sourceType })),
       restraintObservation: item.decision.current.decisionState === "NO_ACTION" ? {
-        state: observableChasingRefs(item.events).length ? "CHASING_VIOLATION" : "NOT_OBSERVABLE",
+        state: observableChasingRefs(validEvents).length ? "CHASING_VIOLATION" : "NOT_OBSERVABLE",
         window: observedThrough,
-        sourceRefs: observableChasingRefs(item.events),
+        sourceRefs: observableChasingRefs(validEvents),
       } : undefined,
       managerReviewHistory: [],
     };
@@ -394,10 +416,22 @@ function emptyPerformance(): PerformanceLedger { return { decisionDiscipline: {}
 function emptyProfile(operatorId: string): OperatorProfile { return { operatorId, profileVersion: "operator-profile-v0", boundary: "EVIDENCE_BACKED_OPERATING_PATTERNS_NOT_PERSONALITY", patterns: [], measures: { nextStepSecuredRate: emptyMetric(), strongSignalResponseLatency: emptyMetric(), commitmentCompletion: emptyMetric(), observableChasing: emptyMetric(), unresolvedOpportunities: emptyMetric(), overrideFrequency: emptyMetric(), qualificationCompleteness: emptyMetric(), stageProgression: emptyMetric(), concessionBehavior: emptyMetric() } }; }
 function emptyMetric(): MetricValue { return { numerator: 0, denominator: 0, value: null, statement: "Insufficient observable evidence." }; }
 function cloneOpportunity(item: OperatorOpportunity): OperatorOpportunity { return { ...item, events: item.events.map((event) => ({ ...event, metadata: { ...event.metadata } })), decision: item.decision }; }
-function cloneContract(value: EvidenceContract): EvidenceContract { return { ...value, primaryEvidence: [...value.primaryEvidence], provenance: [...value.provenance], contradictions: [...value.contradictions], missingInformation: [...value.missingInformation], uncertainty: [...value.uncertainty], reevaluationConditions: [...value.reevaluationConditions] }; }
+function cloneContract(value: EvidenceContract): EvidenceContract { return { ...value, primaryEvidence: [...value.primaryEvidence], provenance: [...value.provenance], contradictions: [...value.contradictions], missingInformation: [...value.missingInformation], uncertainty: [...value.uncertainty], reevaluationConditions: [...value.reevaluationConditions], excludedEvidence: value.excludedEvidence.map((item) => ({ ...item })) }; }
 function cloneMetrics(value: Record<string, MetricValue>): Record<string, MetricValue> { return Object.fromEntries(Object.entries(value).map(([key, metric]) => [key, { ...metric }])); }
 function pickMetric(metric: { numerator: number; denominator: number }) { return { numerator: metric.numerator, denominator: metric.denominator }; }
 function latestEvent(events: readonly NormalizedSalesEvent[], types: readonly string[]) { return [...events].filter((event) => types.includes(event.eventType)).sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)).at(-1); }
+function prepareOpportunity(item: OperatorOpportunity, asOf: string): OperatorOpportunity {
+  const cloned = cloneOpportunity(item);
+  const usableEvents = cloned.events.filter((event) => isEvidenceUsableAt(event.occurredAt, asOf));
+  return { ...cloned, decision: buildDecisionSequence(usableEvents) };
+}
+function isMateriallyFuture(occurredAt: string, asOf: string): boolean {
+  return validTime(occurredAt) && validTime(asOf) && Date.parse(occurredAt) > Date.parse(asOf) + FUTURE_EVIDENCE_TOLERANCE_MS;
+}
+function isEvidenceUsableAt(occurredAt: string, asOf: string): boolean { return validTime(occurredAt) && !isMateriallyFuture(occurredAt, asOf); }
+function isMeaningfulLeadEngagement(event: NormalizedSalesEvent): boolean {
+  return event.direction !== "INTERNAL" && event.eventType !== "OPERATOR_NOTE";
+}
 function buyerReportedCapture(kind: QuickCaptureInput["kind"]): boolean { return ["CLIENT_CALLED", "CLIENT_REPLIED", "CLIENT_REQUESTED_OPTIONS", "CLIENT_POSTPONED", "BUDGET_CLARIFIED", "PARTNER_APPROVAL_REQUIRED", "OBJECTION", "EXPLICIT_REJECTION", "NEW_TIMELINE", "EOI", "RESERVATION"].includes(kind); }
 function observableChasingRefs(events: readonly NormalizedSalesEvent[]): string[] {
   const ordered = [...events].filter((event) => validTime(event.occurredAt)).sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));

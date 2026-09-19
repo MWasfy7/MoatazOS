@@ -8,6 +8,7 @@ export type QueueReasonCode =
   | "CURRENT_BUYER_SIGNAL"
   | "OVERDUE_SELLER_COMMITMENT"
   | "ACTIVE_BUYER_PAUSE"
+  | "ACTIVE_BUYER_PAUSE_WITH_OVERDUE_COMMITMENT"
   | "CONTRADICTORY_EVIDENCE"
   | "AGING_EVIDENCE_GAP"
   | "INSUFFICIENT_EVIDENCE"
@@ -55,6 +56,14 @@ export interface CommandQueueItem {
   reevaluateWhen: readonly string[];
   evidenceContract: EvidenceContract;
   reasonCode: QueueReasonCode;
+  explanations: Record<"en" | "ar", QueueExplanation>;
+}
+
+export interface QueueExplanation {
+  whyHere: string;
+  whyNow: string;
+  recommendation: string;
+  ignoreRisk: string;
 }
 
 export type CaptureKind =

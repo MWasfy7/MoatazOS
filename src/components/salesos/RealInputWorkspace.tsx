@@ -37,6 +37,7 @@ export function RealInputWorkspace({ onAccepted }: { onAccepted?: (result: Impor
       organizationId,
       salesFloorId,
       sourceId: fileName.replace(/[^a-zA-Z0-9._-]/g, "_") || "local-preview",
+      asOf: new Date().toISOString(),
       defaultTimezoneOffset: timezoneOffset,
     };
     const result: ImportResult = kind === "CRM"

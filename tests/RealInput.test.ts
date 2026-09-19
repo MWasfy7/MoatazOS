@@ -15,6 +15,7 @@ const context: ImportContext = {
   organizationId: "org-synthetic",
   salesFloorId: "floor-synthetic",
   sourceId: "fixture-001",
+  asOf: "2026-09-05T09:00:00.000Z",
   defaultTimezoneOffset: "+02:00",
 };
 
@@ -116,6 +117,20 @@ describe("S1 CRM CSV normalization", () => {
     expect(result.status).toBe("REJECTED");
     expect(result.issues).toContainEqual(expect.objectContaining({ code: "INVALID_TIMESTAMP" }));
   });
+
+  it("S1-R01 rejects a materially future event occurrence at the CSV boundary", () => {
+    const result = parseCrmCsv(`${minimalHeader}\ne-1,l-1,2027-09-05T09:00:00Z,a-1,BUYER,CRM,CLIENT_REQUESTED_OPTIONS,INBOUND,src-1,send options`, context);
+    expect(result.status).toBe("REJECTED");
+    expect(result.events).toHaveLength(0);
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: "FUTURE_EVENT_TIMESTAMP", severity: "ERROR", line: 2 }));
+  });
+
+  it("S1-R02 preserves a legitimate future commitment due date while validating occurred_at", () => {
+    const header = `${minimalHeader},meta_due_at`;
+    const result = parseCrmCsv(`${header}\ne-1,l-1,2026-09-05T09:00:00Z,a-1,REP,CRM,SELLER_COMMITMENT,INTERNAL,src-1,follow up,2026-09-10T09:00:00Z`, context);
+    expect(result.status).toBe("ACCEPTED");
+    expect(result.events[0]?.metadata.dueAt).toBe("2026-09-10T09:00:00Z");
+  });
 });
 
 describe("S1 WhatsApp export normalization", () => {
@@ -177,6 +192,13 @@ describe("S1 WhatsApp export normalization", () => {
     const second = parseWhatsappExport(SYNTHETIC_WHATSAPP_EXPORT, whatsappOptions);
     expect(first.events.map((event) => event.sourceRef)).toEqual(second.events.map((event) => event.sourceRef));
     expect(first.events[0]?.sourceRef).toMatch(/^whatsapp:fixture-001:message:/);
+  });
+
+  it("S1-R03 rejects materially future WhatsApp evidence at the same import boundary", () => {
+    const result = parseWhatsappExport("[06/09/2026, 10:20] - Buyer Synth: send options", whatsappOptions);
+    expect(result.status).toBe("REJECTED");
+    expect(result.events).toHaveLength(0);
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: "FUTURE_EVENT_TIMESTAMP", severity: "ERROR" }));
   });
 });
 

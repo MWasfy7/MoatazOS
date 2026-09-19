@@ -12,6 +12,7 @@ describe("SalesOS customer diagnostic handoff", () => {
       organizationId: "org-synthetic",
       salesFloorId: "floor-synthetic",
       sourceId: "diagnostic-template",
+      asOf: "2026-09-05T09:00:00.000Z",
       defaultTimezoneOffset: "+02:00",
     });
     expect(result.status).toBe("ACCEPTED");

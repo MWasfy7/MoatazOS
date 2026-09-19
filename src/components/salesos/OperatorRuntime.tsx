@@ -17,7 +17,7 @@ const CAPTURE_KINDS: CaptureKind[] = ["CLIENT_CALLED", "CLIENT_REPLIED", "MEETIN
 const MANUAL_TRIAL_SIGNALS: Exclude<TrialSignalKind, "QUEUE_OPENED" | "RECOMMENDATION_OVERRIDDEN" | "QUICK_CAPTURE">[] = ["RECOMMENDATION_ACCEPTED", "INCORRECT_PRIORITY", "FALSE_URGENCY", "MISSED_IMPORTANT_OPPORTUNITY", "NO_ACTION_USEFUL", "MISSED_COMMITMENT", "WORKFLOW_ABANDONED", "FEATURE_IGNORED"];
 
 export function OperatorRuntime() {
-  const { dict } = useLocale();
+  const { dict, locale } = useLocale();
   const copy = dict.operatorRuntime;
   const [session, setSession] = useState<OperatorSession | null>(() => createOperatorSession("operator-local", SYNTHETIC_OPERATOR_OPPORTUNITIES, SYNTHETIC_OPERATOR_AS_OF));
   const [selectedId, setSelectedId] = useState("opp-egypt-overdue");
@@ -94,7 +94,7 @@ export function OperatorRuntime() {
                 <div className="flex items-center justify-between gap-2"><h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-300">{copy.sections[section]}</h3><span className="rounded-full bg-neutral-800 px-2 py-0.5 text-[10px] text-neutral-400">{items.length}</span></div>
                 {items.length === 0 ? <p className="mt-4 text-xs text-neutral-600">{copy.noArtificialItems}</p> : <ul className="mt-3 space-y-2">{items.map((item) => (
                   <li key={item.queueItemId}><button type="button" data-queue-reason={item.reasonCode} onClick={() => setSelectedId(item.opportunityId)} aria-pressed={queueItem?.opportunityId === item.opportunityId} className={`w-full rounded-xl border p-3 text-start ${queueItem?.opportunityId === item.opportunityId ? "border-amber-700 bg-amber-950/30" : "border-neutral-800 bg-neutral-900/60"}`}>
-                    <span className="block text-sm font-medium text-neutral-100" dir="auto">{item.displayLabel}</span><span className="mt-2 block text-xs leading-5 text-neutral-400">{copy.queueReasonWhy[item.reasonCode]}</span>
+                    <span className="block text-sm font-medium text-neutral-100" dir="auto">{item.displayLabel}</span><span className="mt-2 block text-xs leading-5 text-neutral-400" dir="auto">{item.explanations[locale].whyHere}</span>
                   </button></li>
                 ))}</ul>}
               </section>
@@ -109,12 +109,12 @@ export function OperatorRuntime() {
             <article className="rounded-2xl border border-neutral-800 bg-neutral-950 p-5">
               <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-widest text-sky-300">{copy.decide}</p><h2 className="mt-2 text-2xl font-semibold text-white" dir="auto">{queueItem.displayLabel}</h2></div><span data-decision-state={snapshot.decisionState} className="rounded-full border border-sky-800 bg-sky-950/40 px-3 py-1 text-xs text-sky-200">{dict.decisionState[snapshot.decisionState]}</span></div>
               <dl className="mt-5 grid gap-3 sm:grid-cols-2">
-                <Detail label={copy.why} value={copy.queueReasonWhy[queueItem.reasonCode]} />
-                <Detail label={copy.whyNow} value={copy.queueReasonNow[queueItem.reasonCode]} />
+                <Detail label={copy.why} value={queueItem.explanations[locale].whyHere} />
+                <Detail label={copy.whyNow} value={queueItem.explanations[locale].whyNow} />
                 <Detail label={copy.whatChanged} value={snapshot.priorSnapshotId ? copy.lineageChanged : copy.firstSnapshot} />
-                <Detail label={copy.ignoreRisk} value={copy.queueRisk[queueItem.section]} />
+                <Detail label={copy.ignoreRisk} value={queueItem.explanations[locale].ignoreRisk} />
               </dl>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2"><List title={copy.do} values={[copy.queueDo[queueItem.section]]} /><List title={copy.dont} values={[copy.queueDont[queueItem.section]]} /><List title={copy.reevaluateWhen} values={snapshot.reevaluationConditions.map((key) => dict.decisionEngine.reevaluationLabels[key])} /></div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2"><List title={copy.do} values={[queueItem.explanations[locale].recommendation]} /><List title={copy.dont} values={[copy.queueDont[queueItem.section]]} /><List title={copy.reevaluateWhen} values={snapshot.reevaluationConditions.map((key) => dict.decisionEngine.reevaluationLabels[key])} /></div>
             </article>
 
             <article className="rounded-2xl border border-neutral-800 bg-neutral-950 p-5" data-testid="evidence-contract">

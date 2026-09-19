@@ -2,11 +2,13 @@ import type { EventDirection, ImportIssue, SalesActorRole, SalesChannel } from "
 
 const OFFSET_PATTERN = /^([+-])(\d{2}):(\d{2})$/;
 const LOCAL_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
+export const FUTURE_EVENT_TOLERANCE_MS = 5 * 60_000;
 
 export function requiredContextIssues(context: {
   organizationId: string;
   salesFloorId: string;
   sourceId: string;
+  asOf: string;
   defaultTimezoneOffset: string;
 }): ImportIssue[] {
   const issues: ImportIssue[] = [];
@@ -14,6 +16,7 @@ export function requiredContextIssues(context: {
     organizationId: context.organizationId,
     salesFloorId: context.salesFloorId,
     sourceId: context.sourceId,
+    asOf: context.asOf,
     defaultTimezoneOffset: context.defaultTimezoneOffset,
   };
   for (const [field, value] of Object.entries(requiredFields)) {
@@ -22,7 +25,16 @@ export function requiredContextIssues(context: {
   if (context.defaultTimezoneOffset && parseOffsetMinutes(context.defaultTimezoneOffset) === null) {
     issues.push({ severity: "ERROR", code: "INVALID_TIMEZONE_OFFSET", message: "Timezone must be a fixed offset such as +02:00." });
   }
+  if (context.asOf && !normalizeTimestamp(context.asOf, context.defaultTimezoneOffset)) {
+    issues.push({ severity: "ERROR", code: "INVALID_IMPORT_CLOCK", message: "Import clock must be an unambiguous timestamp." });
+  }
   return issues;
+}
+
+export function isMateriallyFutureTimestamp(occurredAt: string, asOf: string): boolean {
+  const occurred = Date.parse(occurredAt);
+  const observed = Date.parse(asOf);
+  return !Number.isNaN(occurred) && !Number.isNaN(observed) && occurred > observed + FUTURE_EVENT_TOLERANCE_MS;
 }
 
 export function parseOffsetMinutes(offset: string): number | null {

@@ -33,7 +33,9 @@ export function applyConversationPolicy(
     return {
       response: context.ambiguity.length
         ? `I understand the direction, but the target could be ${listAmbiguity(context)}. Which one do you mean?`
-        : "I understand the action, but I can’t resolve what that refers to in this session. Which current topic do you mean?",
+        : intent.operation === "send"
+          ? "Which message or document, and which recipient? I can prepare a proposal, but no sending service is connected."
+          : "I understand the action, but I can’t resolve its target in this session. Which item do you mean?",
       destination: "CLARIFICATION",
     };
   if (intent.kind === "GREETING")
@@ -56,10 +58,22 @@ export function applyConversationPolicy(
       response: `Understood — the current focus is ${context.resolvedTarget.label}. I corrected the conversation context only.`,
       destination: "CONTEXT",
     };
+  if (intent.kind === "CANCEL_REQUEST")
+    return {
+      response: "Understood. I won’t proceed with that request. Nothing external has run.",
+      destination: "CONVERSATION",
+    };
+  if (intent.kind === "RESTRAINT_REQUEST")
+    return {
+      response: context.resolvedTarget
+        ? `Understood. I’m withholding action on this turn. The current focus is ${context.resolvedTarget.label}; no durable contact policy has been changed.`
+        : "Understood. I’m withholding action on this turn. No durable contact policy has been changed.",
+      destination: "CONVERSATION",
+    };
   if (intent.kind === "ACTION_REQUEST") {
     if (context.resolvedTarget && actions.length)
       return {
-        response: `I resolved this as a request to ${intent.operation ?? "work on"} ${context.resolvedTarget.label}. I’ve prepared it for review here; nothing external has run.`,
+        response: `I resolved this as a request to ${intent.operation ?? "work on"} ${context.resolvedTarget.label}. I’ve prepared it for review here; nothing external has run.${intent.operation === "send" || intent.operation === "delete" ? " No execution service is connected." : ""}`,
         destination: "ACTION_REVIEW",
       };
     return {

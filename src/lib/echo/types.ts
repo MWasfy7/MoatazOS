@@ -10,6 +10,8 @@ export type EchoIntentKind =
   | "GREETING"
   | "CONTINUE"
   | "CORRECTION"
+  | "CANCEL_REQUEST"
+  | "RESTRAINT_REQUEST"
   | "ACTION_REQUEST"
   | "INFORMATION_REQUEST"
   | "CONTEXT_UPDATE"
@@ -94,6 +96,7 @@ export interface EchoResult {
 export interface EchoRuntimeSnapshot {
   session: EchoSessionContext;
   lastResult?: EchoResult;
+  nextTurnSequence: number;
 }
 
 export interface IntentResolution {

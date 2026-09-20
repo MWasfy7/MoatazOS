@@ -199,4 +199,105 @@ describe("ECHO Build 0 natural conversational runtime", () => {
     expect(result.proposedActions).toEqual([]);
     expect(result.clarificationRequired).toBe(false);
   });
+
+  it("keeps a greeting conversational without replacing the active focus", () => {
+    const runtime = createEchoRuntime();
+    runtime.process(input("ECHO runtime"));
+    const result = runtime.process(input("morning"));
+    expect(result.resolvedIntent.kind).toBe("GREETING");
+    expect(result.proposedActions).toEqual([]);
+    expect(runtime.snapshot("test-session")?.session.activeFocus?.label).toBe("ECHO runtime");
+  });
+
+  it.each([
+    ["English", "don't change that file"],
+    ["noisy transcript", "uh send send that to wait no"],
+    ["Egyptian Arabic", "بلاش نبعت دلوقتي"],
+  ])("honors %s cancellation before positive action words", (_label, text) => {
+    const runtime = createEchoRuntime();
+    runtime.process(input("ECHO runtime"));
+    const result = runtime.process(input(text));
+    expect(result.resolvedIntent.kind).toBe("CANCEL_REQUEST");
+    expect(result.proposedActions).toEqual([]);
+    expect(result.response).toContain("Nothing external has run");
+  });
+
+  it("recognizes a scoped follow-up restraint without replacing focus", () => {
+    const runtime = createEchoRuntime();
+    runtime.process(input("Mostafa's deal"));
+    const result = runtime.process(input("مش عايز أي follow up تاني، خلاص"));
+    expect(result.resolvedIntent.kind).toBe("RESTRAINT_REQUEST");
+    expect(result.proposedActions).toEqual([]);
+    expect(runtime.snapshot("test-session")?.session.activeFocus?.label).toBe("Mostafa's deal");
+  });
+
+  it("recognizes an outbound request and clarifies unbound payload and recipient", () => {
+    const runtime = createEchoRuntime();
+    runtime.process(input("ECHO runtime"));
+    const result = runtime.process(input("send that to him"));
+    expect(result.resolvedIntent).toMatchObject({ kind: "ACTION_REQUEST", operation: "send" });
+    expect(result.clarificationRequired).toBe(true);
+    expect(result.proposedActions).toEqual([]);
+  });
+
+  it("recognizes a destructive request while keeping it proposal-only", () => {
+    const runtime = createEchoRuntime();
+    runtime.process(input("the stale client record"));
+    const result = runtime.process(input("delete it"));
+    expect(result.resolvedIntent).toMatchObject({ kind: "ACTION_REQUEST", operation: "delete" });
+    expect(result.proposedActions).toHaveLength(1);
+    expect(result.proposedActions[0]).toMatchObject({ externalSideEffect: false, status: "PROPOSED" });
+    expect(result.response).toContain("nothing external has run");
+  });
+
+  it("uses monotonic turn IDs after bounded history truncation", () => {
+    const runtime = createEchoRuntime();
+    runtime.process(input("ECHO runtime"));
+    for (let index = 0; index < 13; index += 1) runtime.process(input("continue"));
+    const turns = runtime.snapshot("test-session")?.session.turns ?? [];
+    expect(new Set(turns.map(({ id }) => id)).size).toBe(turns.length);
+    expect(runtime.snapshot("test-session")?.nextTurnSequence).toBe(28);
+  });
+
+  it("assigns a unique ID to each proposal instance", () => {
+    const runtime = createEchoRuntime();
+    runtime.process(input("ECHO runtime"));
+    const first = runtime.process(input("fix that"));
+    const second = runtime.process(input("fix that"));
+    expect(first.proposedActions[0]?.id).not.toBe(second.proposedActions[0]?.id);
+  });
+
+  it.each(["متغيرش الملف ده", "matghayarsh el file", "balash eb3atlo", "don't change that file"])("suppresses negated actions with text/transcript parity: %s", (text) => {
+    const typed = createEchoRuntime().process(input(text));
+    const transcript = createEchoRuntime().process(input(text, { inputMode: "VOICE_TRANSCRIPT" }));
+    expect(typed.resolvedIntent.kind).toBe("CANCEL_REQUEST");
+    expect(typed.proposedActions).toEqual([]);
+    expect(transcript).toEqual(typed);
+  });
+
+  it.each(["I don't know", "what is a stop rule?", "explain the cancellation policy"])("does not mistake ordinary negative or quoted vocabulary for cancellation: %s", (text) => {
+    const result = createEchoRuntime().process(input(text));
+    expect(["CANCEL_REQUEST", "RESTRAINT_REQUEST"]).not.toContain(result.resolvedIntent.kind);
+  });
+
+  it.each(["ابعتله دي", "eb3atlo da", "send that to him"])("clarifies an outbound request without inventing recipient binding: %s", (text) => {
+    const result = createEchoRuntime().process(input(text));
+    expect(result.resolvedIntent.operation).toBe("send");
+    expect(result.clarificationRequired).toBe(true);
+    expect(result.response).toContain("no sending service is connected");
+    expect(result.proposedActions).toEqual([]);
+  });
+
+  it.each(["send", "delete", "delete it"])("asks for missing targets on first-turn actions: %s", (text) => {
+    const result = createEchoRuntime().process(input(text));
+    expect(result.clarificationRequired).toBe(true);
+    expect(result.proposedActions).toEqual([]);
+  });
+
+  it.each(["change the ECHO layout", "غير الملف", "ghayar el file"])("retains positive action handling: %s", (text) => {
+    const result = createEchoRuntime().process(input(text));
+    expect(result.resolvedIntent.kind).toBe("ACTION_REQUEST");
+    expect(result.proposedActions).toHaveLength(1);
+    expect(result.proposedActions[0]?.externalSideEffect).toBe(false);
+  });
 });

@@ -92,6 +92,15 @@ function ensureEchoRuntimeExtracted(targetSha = TARGET_ECHO_SHA): string {
   const bundleFile = path.join(cacheDir, "bundle.cjs");
   if (!fs.existsSync(bundleFile)) {
     fs.mkdirSync(cacheDir, { recursive: true });
+    try {
+      execSync(`git cat-file -e ${targetSha}`, { stdio: "ignore" });
+    } catch {
+      try {
+        execSync(`git fetch origin ${targetSha}`, { stdio: "ignore" });
+      } catch {
+        execSync(`git fetch origin echo/build-0-natural-runtime`, { stdio: "ignore" });
+      }
+    }
     execSync(`git archive ${targetSha} src/lib/echo | tar -x -C ${cacheDir}`);
     const indexPath = path.join(cacheDir, "src", "lib", "echo", "index.ts");
     execSync(`npx esbuild ${indexPath} --bundle --platform=node --format=cjs --outfile=${bundleFile}`);

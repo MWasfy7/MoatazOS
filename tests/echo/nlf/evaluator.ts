@@ -1,8 +1,9 @@
-import type { AdaptedObservation } from "./adapter";
+import type { AdaptedObservation, NLFRuntimeAdapter } from "./adapter";
 import type {
   ExpectedTurnEvaluation,
   NLFCandidateCase,
 } from "./fixtures/candidateFixtures";
+import type { OriginalNLFCase } from "./fixtures/originalNlf50";
 
 export interface DimensionScore {
   passed: boolean;
@@ -33,6 +34,19 @@ export interface CaseEvaluationResult {
   turns: TurnEvaluationResult[];
 }
 
+export interface OriginalCaseEvaluationResult {
+  caseId: string;
+  input: string;
+  sourceExpectedIntent: string;
+  mappedRuntimeIntent: string;
+  sourceClarificationFlag: boolean;
+  actualClarificationRequired: boolean;
+  sourceConflict?: string;
+  passed: boolean;
+  dimensions: TurnEvaluationResult["dimensions"];
+  observation: AdaptedObservation;
+}
+
 export interface AggregateScores {
   totalCases: number;
   passedCases: number;
@@ -58,10 +72,20 @@ export interface AggregateScores {
 export interface EvaluationReport {
   targetEchoSha: string;
   baseSha: string;
-  missingDependencyReported: boolean;
-  cases: CaseEvaluationResult[];
-  aggregate: AggregateScores;
+  harnessExecutionSuccess: boolean;
+  candidateBenchmarkAccepted: boolean;
+  originalBenchmarkAccepted: boolean;
+  overallAccepted: boolean;
+  gateExitCode: number; // Discloses whether failing cases produce a nonzero gate exit
+  candidateCases: CaseEvaluationResult[];
+  originalCases: OriginalCaseEvaluationResult[];
+  candidateAggregate: AggregateScores;
+  originalAggregate: AggregateScores & {
+    sourceConflictsCount: number;
+    sourceConflicts: Array<{ caseId: string; conflict: string }>;
+  };
   failedCaseDetails: Array<{
+    suite: "candidate" | "original";
     caseId: string;
     title: string;
     failingTurnIndex: number;
@@ -72,7 +96,7 @@ export interface EvaluationReport {
 }
 
 export function scoreIntentUnderstanding(
-  expected: ExpectedTurnEvaluation,
+  expected: { expectedIntentKind: string; expectedLanguage?: string },
   observed: AdaptedObservation,
 ): DimensionScore {
   const details: string[] = [];
@@ -105,7 +129,10 @@ export function scoreIntentUnderstanding(
 }
 
 export function scoreContextAndReferentResolution(
-  expected: ExpectedTurnEvaluation,
+  expected: {
+    expectedActiveFocusLabel?: string | null;
+    expectedTargetReferenceId?: string;
+  },
   observed: AdaptedObservation,
 ): DimensionScore {
   const details: string[] = [];
@@ -156,7 +183,7 @@ export function scoreContextAndReferentResolution(
 }
 
 export function scoreClarificationAppropriateness(
-  expected: ExpectedTurnEvaluation,
+  expected: { expectedClarificationRequired: boolean; expectedClarificationReason?: string },
   observed: AdaptedObservation,
 ): DimensionScore {
   const details: string[] = [];
@@ -179,7 +206,7 @@ export function scoreClarificationAppropriateness(
 }
 
 export function scoreCapabilityExecutionHonesty(
-  expected: ExpectedTurnEvaluation,
+  expected: { expectedExternalSideEffect?: boolean },
   observed: AdaptedObservation,
 ): DimensionScore {
   const details: string[] = [];
@@ -227,7 +254,7 @@ export function scoreCapabilityExecutionHonesty(
 }
 
 export function scoreConversationalBehavior(
-  expected: ExpectedTurnEvaluation,
+  expected: { expectedDestination?: string; expectedResponseSubstring?: string },
   observed: AdaptedObservation,
 ): DimensionScore {
   const details: string[] = [];
@@ -305,7 +332,6 @@ export function evaluateTurn(
     observed,
   );
 
-  // A semantic pass requires ALL 5 dimensions to pass
   const passed =
     intentUnderstanding.passed &&
     contextAndReferentResolution.passed &&
@@ -330,10 +356,10 @@ export function evaluateTurn(
 
 export function evaluateCase(
   candidateCase: NLFCandidateCase,
-  adapter: import("./adapter").NLFRuntimeAdapter,
+  adapter: NLFRuntimeAdapter,
 ): CaseEvaluationResult {
   adapter.reset();
-  const sessionId = `eval-session-${candidateCase.id}`;
+  const sessionId = `eval-candidate-${candidateCase.id}`;
   const timestamp = "2026-09-19T09:00:00.000Z";
 
   const turnResults: TurnEvaluationResult[] = [];
@@ -360,18 +386,59 @@ export function evaluateCase(
   };
 }
 
+export function evaluateOriginalCase(
+  originalCase: OriginalNLFCase,
+  adapter: NLFRuntimeAdapter,
+): OriginalCaseEvaluationResult {
+  adapter.reset();
+  const sessionId = `eval-original-${originalCase.id}`;
+  const timestamp = "2026-09-19T09:00:00.000Z";
+
+  const turnExp: ExpectedTurnEvaluation = {
+    input: originalCase.input,
+    inputMode: originalCase.inputMode ?? "TEXT",
+    initialActiveFocusLabel: originalCase.initialActiveFocusLabel,
+    initialReferences: originalCase.initialReferences,
+    expectedIntentKind: originalCase.mappedRuntimeIntent,
+    expectedClarificationRequired: originalCase.expectedClarificationRequired,
+    expectedDestination: originalCase.expectedDestination,
+    expectedExternalSideEffect: false,
+  };
+
+  const observation = adapter.processTurn(sessionId, turnExp, 0, timestamp);
+  const turnResult = evaluateTurn(0, turnExp, observation);
+
+  return {
+    caseId: originalCase.id,
+    input: originalCase.input,
+    sourceExpectedIntent: originalCase.sourceExpectedIntent,
+    mappedRuntimeIntent: originalCase.mappedRuntimeIntent,
+    sourceClarificationFlag: originalCase.sourceClarificationFlag,
+    actualClarificationRequired: observation.clarificationRequired,
+    sourceConflict: originalCase.sourceConflict,
+    passed: turnResult.passed,
+    dimensions: turnResult.dimensions,
+    observation,
+  };
+}
+
 export function runFullNLFEvaluation(
-  fixtures: NLFCandidateCase[],
-  adapter: import("./adapter").NLFRuntimeAdapter,
+  candidateFixtures: NLFCandidateCase[],
+  originalFixtures: OriginalNLFCase[],
+  adapter: NLFRuntimeAdapter,
   targetEchoSha = "b7a3a2f495aeaf9764b61089be5c612fc1dd9dad",
   baseSha = "632fd469aa4d8f12257f4fdcd163ab02e5e67d2f",
+  strictGateExit = false,
 ): EvaluationReport {
-  const caseResults: CaseEvaluationResult[] = [];
-  let passedCases = 0;
-  let totalTurns = 0;
-  let passedTurns = 0;
+  let harnessExecutionSuccess = true;
+  const candidateResults: CaseEvaluationResult[] = [];
+  const originalResults: OriginalCaseEvaluationResult[] = [];
 
-  const dimensionPassCounts = {
+  let passedCandidateCases = 0;
+  let totalCandidateTurns = 0;
+  let passedCandidateTurns = 0;
+
+  const candidateDimPassCounts = {
     intentUnderstanding: 0,
     contextAndReferentResolution: 0,
     clarificationAppropriateness: 0,
@@ -381,34 +448,91 @@ export function runFullNLFEvaluation(
 
   const failedCaseDetails: EvaluationReport["failedCaseDetails"] = [];
 
-  for (const candidateCase of fixtures) {
-    const caseRes = evaluateCase(candidateCase, adapter);
-    caseResults.push(caseRes);
+  try {
+    for (const candidateCase of candidateFixtures) {
+      const caseRes = evaluateCase(candidateCase, adapter);
+      candidateResults.push(caseRes);
 
-    if (caseRes.passed) {
-      passedCases++;
+      if (caseRes.passed) passedCandidateCases++;
+
+      for (const turn of caseRes.turns) {
+        totalCandidateTurns++;
+        if (turn.passed) passedCandidateTurns++;
+
+        if (turn.dimensions.intentUnderstanding.passed)
+          candidateDimPassCounts.intentUnderstanding++;
+        if (turn.dimensions.contextAndReferentResolution.passed)
+          candidateDimPassCounts.contextAndReferentResolution++;
+        if (turn.dimensions.clarificationAppropriateness.passed)
+          candidateDimPassCounts.clarificationAppropriateness++;
+        if (turn.dimensions.capabilityExecutionHonesty.passed)
+          candidateDimPassCounts.capabilityExecutionHonesty++;
+        if (turn.dimensions.conversationalBehavior.passed)
+          candidateDimPassCounts.conversationalBehavior++;
+
+        if (!turn.passed) {
+          const failingDims: string[] = [];
+          const turnDetails: string[] = [];
+
+          for (const [dimKey, dimVal] of Object.entries(turn.dimensions)) {
+            if (!dimVal.passed) {
+              failingDims.push(dimKey);
+              turnDetails.push(...dimVal.details);
+            }
+          }
+
+          failedCaseDetails.push({
+            suite: "candidate",
+            caseId: caseRes.caseId,
+            title: caseRes.caseTitle,
+            failingTurnIndex: turn.turnIndex,
+            failingDimensions: failingDims,
+            turnInput: turn.input,
+            turnDetails,
+          });
+        }
+      }
     }
 
-    for (const turn of caseRes.turns) {
-      totalTurns++;
-      if (turn.passed) passedTurns++;
+    let passedOriginalCases = 0;
+    const originalDimPassCounts = {
+      intentUnderstanding: 0,
+      contextAndReferentResolution: 0,
+      clarificationAppropriateness: 0,
+      capabilityExecutionHonesty: 0,
+      conversationalBehavior: 0,
+    };
+    const sourceConflictsList: Array<{ caseId: string; conflict: string }> = [];
 
-      if (turn.dimensions.intentUnderstanding.passed)
-        dimensionPassCounts.intentUnderstanding++;
-      if (turn.dimensions.contextAndReferentResolution.passed)
-        dimensionPassCounts.contextAndReferentResolution++;
-      if (turn.dimensions.clarificationAppropriateness.passed)
-        dimensionPassCounts.clarificationAppropriateness++;
-      if (turn.dimensions.capabilityExecutionHonesty.passed)
-        dimensionPassCounts.capabilityExecutionHonesty++;
-      if (turn.dimensions.conversationalBehavior.passed)
-        dimensionPassCounts.conversationalBehavior++;
+    for (const origCase of originalFixtures) {
+      const origRes = evaluateOriginalCase(origCase, adapter);
+      originalResults.push(origRes);
 
-      if (!turn.passed) {
+      if (origCase.sourceConflict) {
+        sourceConflictsList.push({
+          caseId: origCase.id,
+          conflict: origCase.sourceConflict,
+        });
+      }
+
+      if (origRes.passed) passedOriginalCases++;
+
+      if (origRes.dimensions.intentUnderstanding.passed)
+        originalDimPassCounts.intentUnderstanding++;
+      if (origRes.dimensions.contextAndReferentResolution.passed)
+        originalDimPassCounts.contextAndReferentResolution++;
+      if (origRes.dimensions.clarificationAppropriateness.passed)
+        originalDimPassCounts.clarificationAppropriateness++;
+      if (origRes.dimensions.capabilityExecutionHonesty.passed)
+        originalDimPassCounts.capabilityExecutionHonesty++;
+      if (origRes.dimensions.conversationalBehavior.passed)
+        originalDimPassCounts.conversationalBehavior++;
+
+      if (!origRes.passed) {
         const failingDims: string[] = [];
         const turnDetails: string[] = [];
 
-        for (const [dimKey, dimVal] of Object.entries(turn.dimensions)) {
+        for (const [dimKey, dimVal] of Object.entries(origRes.dimensions)) {
           if (!dimVal.passed) {
             failingDims.push(dimKey);
             turnDetails.push(...dimVal.details);
@@ -416,54 +540,127 @@ export function runFullNLFEvaluation(
         }
 
         failedCaseDetails.push({
-          caseId: caseRes.caseId,
-          title: caseRes.caseTitle,
-          failingTurnIndex: turn.turnIndex,
+          suite: "original",
+          caseId: origRes.caseId,
+          title: `Original case ${origRes.caseId} (${origRes.sourceExpectedIntent})`,
+          failingTurnIndex: 0,
           failingDimensions: failingDims,
-          turnInput: turn.input,
+          turnInput: origRes.input,
           turnDetails,
         });
       }
     }
+
+    const candidateBenchmarkAccepted =
+      passedCandidateCases === candidateFixtures.length;
+    const originalBenchmarkAccepted =
+      passedOriginalCases === originalFixtures.length;
+    const overallAccepted =
+      candidateBenchmarkAccepted && originalBenchmarkAccepted;
+
+    const candidateAggregate: AggregateScores = {
+      totalCases: candidateFixtures.length,
+      passedCases: passedCandidateCases,
+      failedCases: candidateFixtures.length - passedCandidateCases,
+      totalTurns: totalCandidateTurns,
+      passedTurns: passedCandidateTurns,
+      dimensionPassCounts: candidateDimPassCounts,
+      dimensionPassRates: {
+        intentUnderstanding:
+          totalCandidateTurns > 0
+            ? (candidateDimPassCounts.intentUnderstanding / totalCandidateTurns) *
+              100
+            : 0,
+        contextAndReferentResolution:
+          totalCandidateTurns > 0
+            ? (candidateDimPassCounts.contextAndReferentResolution /
+                totalCandidateTurns) *
+              100
+            : 0,
+        clarificationAppropriateness:
+          totalCandidateTurns > 0
+            ? (candidateDimPassCounts.clarificationAppropriateness /
+                totalCandidateTurns) *
+              100
+            : 0,
+        capabilityExecutionHonesty:
+          totalCandidateTurns > 0
+            ? (candidateDimPassCounts.capabilityExecutionHonesty /
+                totalCandidateTurns) *
+              100
+            : 0,
+        conversationalBehavior:
+          totalCandidateTurns > 0
+            ? (candidateDimPassCounts.conversationalBehavior /
+                totalCandidateTurns) *
+              100
+            : 0,
+      },
+    };
+
+    const originalAggregate: AggregateScores & {
+      sourceConflictsCount: number;
+      sourceConflicts: Array<{ caseId: string; conflict: string }>;
+    } = {
+      totalCases: originalFixtures.length,
+      passedCases: passedOriginalCases,
+      failedCases: originalFixtures.length - passedOriginalCases,
+      totalTurns: originalFixtures.length,
+      passedTurns: passedOriginalCases,
+      dimensionPassCounts: originalDimPassCounts,
+      dimensionPassRates: {
+        intentUnderstanding:
+          originalFixtures.length > 0
+            ? (originalDimPassCounts.intentUnderstanding / originalFixtures.length) *
+              100
+            : 0,
+        contextAndReferentResolution:
+          originalFixtures.length > 0
+            ? (originalDimPassCounts.contextAndReferentResolution /
+                originalFixtures.length) *
+              100
+            : 0,
+        clarificationAppropriateness:
+          originalFixtures.length > 0
+            ? (originalDimPassCounts.clarificationAppropriateness /
+                originalFixtures.length) *
+              100
+            : 0,
+        capabilityExecutionHonesty:
+          originalFixtures.length > 0
+            ? (originalDimPassCounts.capabilityExecutionHonesty /
+                originalFixtures.length) *
+              100
+            : 0,
+        conversationalBehavior:
+          originalFixtures.length > 0
+            ? (originalDimPassCounts.conversationalBehavior /
+                originalFixtures.length) *
+              100
+            : 0,
+      },
+      sourceConflictsCount: sourceConflictsList.length,
+      sourceConflicts: sourceConflictsList,
+    };
+
+    const gateExitCode = strictGateExit && !overallAccepted ? 1 : 0;
+
+    return {
+      targetEchoSha,
+      baseSha,
+      harnessExecutionSuccess,
+      candidateBenchmarkAccepted,
+      originalBenchmarkAccepted,
+      overallAccepted,
+      gateExitCode,
+      candidateCases: candidateResults,
+      originalCases: originalResults,
+      candidateAggregate,
+      originalAggregate,
+      failedCaseDetails,
+    };
+  } catch (err) {
+    harnessExecutionSuccess = false;
+    throw err;
   }
-
-  const aggregate: AggregateScores = {
-    totalCases: fixtures.length,
-    passedCases,
-    failedCases: fixtures.length - passedCases,
-    totalTurns,
-    passedTurns,
-    dimensionPassCounts,
-    dimensionPassRates: {
-      intentUnderstanding:
-        totalTurns > 0
-          ? (dimensionPassCounts.intentUnderstanding / totalTurns) * 100
-          : 0,
-      contextAndReferentResolution:
-        totalTurns > 0
-          ? (dimensionPassCounts.contextAndReferentResolution / totalTurns) * 100
-          : 0,
-      clarificationAppropriateness:
-        totalTurns > 0
-          ? (dimensionPassCounts.clarificationAppropriateness / totalTurns) * 100
-          : 0,
-      capabilityExecutionHonesty:
-        totalTurns > 0
-          ? (dimensionPassCounts.capabilityExecutionHonesty / totalTurns) * 100
-          : 0,
-      conversationalBehavior:
-        totalTurns > 0
-          ? (dimensionPassCounts.conversationalBehavior / totalTurns) * 100
-          : 0,
-    },
-  };
-
-  return {
-    targetEchoSha,
-    baseSha,
-    missingDependencyReported: true,
-    cases: caseResults,
-    aggregate,
-    failedCaseDetails,
-  };
 }

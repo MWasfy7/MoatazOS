@@ -7,7 +7,7 @@ import type {
 } from "./types";
 
 const REFERENCE_WORDS = new Set([
-  "it", "that", "this", "them", "ده", "دا", "دي", "دول", "da", "di", "dah", "dol",
+  "it", "that", "this", "them", "him", "her", "ده", "دا", "دي", "دول", "له", "لها", "da", "di", "dah", "dol",
 ]);
 
 const slug = (value: string) =>
@@ -73,13 +73,18 @@ export function resolveContext(
       nextFocus = resolvedTarget;
       assumptions.push("The last contrastive clause is the corrected conversational focus.");
     }
+  } else if (intent.kind === "CANCEL_REQUEST" || intent.kind === "RESTRAINT_REQUEST") {
+    resolvedTarget = activeFocus;
   } else if (intent.kind === "CONTINUE") {
     resolvedTarget = activeFocus ?? (references.length === 1 ? references[0] : undefined);
     if (!resolvedTarget && references.length > 1) ambiguity = references;
     if (resolvedTarget)
       assumptions.push("Continue refers to the current focus in this session.");
   } else if (intent.kind === "ACTION_REQUEST") {
-    if (intent.explicitTarget) {
+    const needsTwoBindings = intent.operation === "send";
+    if (needsTwoBindings && intent.usesContextReference) {
+      unresolvedReference = true;
+    } else if (intent.explicitTarget) {
       resolvedTarget = asReference(intent.explicitTarget);
       nextFocus = resolvedTarget;
     } else if (intent.usesContextReference || tokens.some((token) => REFERENCE_WORDS.has(token))) {
@@ -89,6 +94,7 @@ export function resolveContext(
       if (resolvedTarget)
         assumptions.push("The pronoun refers to the active focus in this session.");
     }
+    if (!resolvedTarget && ambiguity.length === 0) unresolvedReference = true;
   } else if (intent.kind === "CONTEXT_UPDATE") {
     const label = input.text.trim().replace(/[.!?؟]+$/u, "");
     if (label) {

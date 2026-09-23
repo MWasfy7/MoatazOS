@@ -32,10 +32,16 @@ export class EchoConversationRuntime {
       references: input.session?.references ?? existing?.references ?? [],
       activeFocus: input.session?.activeFocus ?? existing?.activeFocus,
     });
+    const nextTurnSequence = this.sessions.get(sessionId)?.nextTurnSequence ?? session.turns?.length ?? 0;
     const resolution = resolveIntent(input.text);
     const context = resolveContext(input, session, resolution);
     const confidence = routeConfidence(resolution.intent, context);
-    const proposedActions = routeActions(resolution.intent, context, confidence);
+    const proposedActions = routeActions(
+      resolution.intent,
+      context,
+      confidence,
+      `proposal:${sessionId}:${nextTurnSequence}`,
+    );
     const policy = applyConversationPolicy(
       input,
       resolution.intent,
@@ -54,14 +60,14 @@ export class EchoConversationRuntime {
       assumptions: context.assumptions,
     };
     const userTurn: EchoConversationTurn = {
-      id: `${sessionId}:user:${session.turns?.length ?? 0}`,
+      id: `${sessionId}:user:${nextTurnSequence}`,
       role: "USER",
       text: input.text,
       timestamp: input.timestamp,
       intent: resolution.intent.kind,
     };
     const echoTurn: EchoConversationTurn = {
-      id: `${sessionId}:echo:${(session.turns?.length ?? 0) + 1}`,
+      id: `${sessionId}:echo:${nextTurnSequence + 1}`,
       role: "ECHO",
       text: result.response,
       timestamp: input.timestamp,
@@ -74,6 +80,7 @@ export class EchoConversationRuntime {
         activeFocus: context.nextFocus,
       },
       lastResult: result,
+      nextTurnSequence: nextTurnSequence + 2,
     });
     return result;
   }
@@ -81,7 +88,11 @@ export class EchoConversationRuntime {
   snapshot(sessionId = DEFAULT_SESSION_ID): EchoRuntimeSnapshot | undefined {
     const snapshot = this.sessions.get(sessionId);
     return snapshot
-      ? { session: cloneSession(snapshot.session), lastResult: snapshot.lastResult }
+      ? {
+          session: cloneSession(snapshot.session),
+          lastResult: snapshot.lastResult,
+          nextTurnSequence: snapshot.nextTurnSequence,
+        }
       : undefined;
   }
 }

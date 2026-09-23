@@ -10,14 +10,14 @@ const PUNCTUATION = /[^\p{L}\p{N}'?]+/gu;
 const STEMS = {
   continue: ["continue", "resume", "proceed", "كمل", "نكمل", "كمّل", "kammel", "kamel", "kmel"],
   action: [
-    "fix", "change", "update", "review", "inspect", "explain", "show", "open",
-    "صلح", "غير", "راجع", "اشرح", "وريني", "افتح",
-    "sal7", "salla7", "ghayar", "rag3", "eshra7", "warini", "efta7",
+    "fix", "change", "update", "review", "inspect", "explain", "show", "open", "send", "delete",
+    "صلح", "غير", "راجع", "اشرح", "وريني", "افتح", "ابعت", "ابعث", "امسح",
+    "sal7", "salla7", "ghayar", "rag3", "eshra7", "warini", "efta7", "eb3at", "ems7",
   ],
   correction: ["actually", "mean", "correction", "قصدي", "لا", "لأ", "مش", "asdy", "la2", "msh", "mesh"],
-  greeting: ["hello", "hey", "hi", "اهلا", "أهلا", "ازيك", "salam", "ezayak"],
+  greeting: ["hello", "hey", "hi", "morning", "مساء", "صباح", "اهلا", "أهلا", "ازيك", "salam", "ezayak"],
   question: ["what", "why", "how", "where", "when", "who", "ايه", "ليه", "ازاي", "فين", "متى", "eh", "leh", "ezay", "feen"],
-  pronoun: ["it", "that", "this", "them", "ده", "دا", "دي", "دول", "داك", "da", "di", "dah", "dol"],
+  pronoun: ["it", "that", "this", "them", "him", "her", "ده", "دا", "دي", "دول", "داك", "له", "لها", "da", "di", "dah", "dol"],
 } as const;
 
 const FILLERS = new Set([
@@ -62,12 +62,14 @@ const meaningfulTokens = (tokens: readonly string[]) =>
 
 const actionOperation = (tokens: readonly string[]) => {
   const token = tokens.find((candidate) => stemMatch(candidate, STEMS.action));
+  if (token && /^(?:send|ابعت|ابعث|eb3at)/u.test(token)) return "send";
+  if (token && /^(?:delete|امسح|ems7)/u.test(token)) return "delete";
   return token;
 };
 
 const explicitTargetAfterAction = (tokens: readonly string[], operation?: string) => {
   if (!operation) return undefined;
-  const index = tokens.indexOf(operation);
+  const index = tokens.findIndex((token) => actionOperation([token]) === operation);
   const tail = tokens
     .slice(index + 1)
     .filter((token) => !POLITE.has(token) && !FILLERS.has(token));
@@ -81,7 +83,17 @@ export function resolveIntent(text: string): IntentResolution {
   const tokens = meaningfulTokens(rawTokens);
   const language = detectEchoLanguage(text);
   const operation = actionOperation(tokens);
-  const usesContextReference = hasStem(tokens, STEMS.pronoun);
+  const explicitCancellation =
+    /\b(?:wait\s+no|never\s*mind)\b/iu.test(normalizedText) ||
+    /^(?:please\s+)?(?:cancel|stop)(?:\s|$)/u.test(normalizedText) ||
+    /\b(?:don't|do\s+not|never)\s+(?:please\s+)?(?:change|fix|update|delete|send|open|continue|resume)\b/u.test(normalizedText) ||
+    /(?:^|\s)(?:بلاش|متعملش|ما\s*تعملش|ماتعملش|متغيرش|ماتغيرش|متبعتش|ماتبعتش|متبعتوش|متصلحش|متمسحش)(?:\s|$)/u.test(normalizedText) ||
+    /\b(?:balash|matb3atsh|matghayarsh|matemsa7sh|matems7sh)\b/u.test(normalizedText);
+  const restraintFrame =
+    /\b(?:don't|do\s+not|no\s+more|stop)\b.*\b(?:follow\s*up|send|message|call)\b/iu.test(normalizedText) ||
+    /(?:مش|مبقتش|ما\s*عدتش)\s+عايز.*(?:follow\s*up|متابعة|رسائل|مكالمات)/iu.test(normalizedText);
+  const usesContextReference = hasStem(tokens, STEMS.pronoun) ||
+    tokens.some((token) => /^(?:ابعت|ابعث)(?:له|لها|لهم)|^eb3at(?:lo|lha|lhom)/u.test(token));
   const correctionFrame =
     hasStem(tokens, STEMS.correction) ||
     /^(?:no)\b/iu.test(normalizedText) ||
@@ -89,7 +101,13 @@ export function resolveIntent(text: string): IntentResolution {
   const signals: string[] = [];
   let kind: ResolvedIntent["kind"] = "CONVERSATION";
 
-  if (correctionFrame) {
+  if (restraintFrame) {
+    kind = "RESTRAINT_REQUEST";
+    signals.push("restraint-marker");
+  } else if (explicitCancellation) {
+    kind = "CANCEL_REQUEST";
+    signals.push("cancellation-marker");
+  } else if (correctionFrame) {
     kind = "CORRECTION";
     signals.push("correction-marker");
   } else if (hasStem(tokens, STEMS.continue) || (/\bcarry\s+on\b/u.test(normalizedText))) {

@@ -15,6 +15,9 @@ export default function SalesOSCommandCenterPage() {
         <p className="mb-4 text-xs uppercase tracking-widest text-neutral-500">
           {dict.commandCenter.opportunityListTitle}
         </p>
+        <Link href="/app-studio/salesos/mobile" className="mb-4 block rounded-md border border-emerald-700 bg-emerald-950/20 px-3 py-3 text-sm font-semibold text-emerald-100">
+          {dict.mobileFollowUp.open}
+        </Link>
         <Link href="/app-studio/salesos/operator-runtime" className="mb-4 block rounded-md border border-amber-700 bg-amber-950/20 px-3 py-3 text-sm font-semibold text-amber-100">
           {dict.operatorRuntime.open}
         </Link>

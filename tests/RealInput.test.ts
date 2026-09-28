@@ -178,6 +178,44 @@ describe("S1 WhatsApp export normalization", () => {
     expect(first.events.map((event) => event.sourceRef)).toEqual(second.events.map((event) => event.sourceRef));
     expect(first.events[0]?.sourceRef).toMatch(/^whatsapp:fixture-001:message:/);
   });
+
+  it("S1-027 accurately maps WhatsApp messages when other customers already exist", () => {
+    const multiCustomerOptions: WhatsappImportOptions = {
+      ...context,
+      dateOrder: "DMY",
+      participants: [
+        { aliases: ["Existing Customer A", "+20 100 000 0001"], actorId: "buyer-001", actorRole: "BUYER", leadId: "lead-001", direction: "INBOUND" },
+        { aliases: ["Target Customer B", "+20 100 000 0002"], actorId: "buyer-002", actorRole: "BUYER", leadId: "lead-002", direction: "INBOUND" },
+        { aliases: ["Rep Synth"], actorId: "rep-001", actorRole: "REP", leadId: "lead-002", direction: "OUTBOUND" },
+      ],
+    };
+
+    const conversation =
+      "[24/08/2026, 10:00] - Target Customer B: Hello, inquiring about villa availability\n" +
+      "[24/08/2026, 10:05] - Rep Synth: Hello! We have several options available in New Cairo.";
+
+    const result = parseWhatsappExport(conversation, multiCustomerOptions);
+    expect(result.status).toBe("ACCEPTED");
+    expect(result.events).toHaveLength(2);
+
+    // Verify events belong strictly to the target lead and actor without cross-customer leakage
+    expect(result.events[0]).toMatchObject({
+      leadId: "lead-002",
+      actorId: "buyer-002",
+      actorRole: "BUYER",
+      direction: "INBOUND",
+      textOrSummary: "Hello, inquiring about villa availability",
+    });
+    expect(result.events[1]).toMatchObject({
+      leadId: "lead-002",
+      actorId: "rep-001",
+      actorRole: "REP",
+      direction: "OUTBOUND",
+    });
+
+    // Verify no events were assigned to Existing Customer A
+    expect(result.events.some((e) => e.leadId === "lead-001" || e.actorId === "buyer-001")).toBe(false);
+  });
 });
 
 describe("S1 privacy-safe preview", () => {

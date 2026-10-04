@@ -74,6 +74,7 @@ export interface EchoRuntimeInstance {
 export interface AdaptedObservation {
   turnInput: EchoInput;
   result: EchoResult;
+  focusBeforeLabel?: string;
   activeFocusLabel?: string;
   contextReferences: EchoContextReference[];
   proposedActions: EchoResult["proposedActions"];
@@ -146,7 +147,7 @@ export class NLFRuntimeAdapter {
       ...(turn.initialReferences ?? []),
     ];
 
-    const activeFocus: EchoContextReference | undefined =
+    const focusBefore: EchoContextReference | undefined =
       turn.initialActiveFocusLabel
         ? {
             id: `topic:${turn.initialActiveFocusLabel.toLowerCase().replace(/\s+/gu, "-")}`,
@@ -159,7 +160,7 @@ export class NLFRuntimeAdapter {
       id: sessionId,
       turns: existingSession?.turns ?? [],
       references,
-      activeFocus,
+      activeFocus: focusBefore,
     };
 
     const echoInput: EchoInput = {
@@ -175,6 +176,7 @@ export class NLFRuntimeAdapter {
     return {
       turnInput: echoInput,
       result,
+      focusBeforeLabel: focusBefore?.label,
       activeFocusLabel: postSnapshot?.session.activeFocus?.label,
       contextReferences: result.contextReferences,
       proposedActions: result.proposedActions,

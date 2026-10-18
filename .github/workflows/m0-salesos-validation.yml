@@ -3,15 +3,17 @@ name: M0 SalesOS validation
 on:
   push:
     branches:
-      - feat/m0-salesos-clickable-product
+      - main
+  # Every PR runs the full gate (no path filter) so the check can be
+  # required by branch protection without blocking docs-only PRs.
   pull_request:
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "package.json"
-      - "tsconfig.json"
-      - "*.config.*"
-      - ".github/workflows/m0-salesos-validation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -23,11 +25,13 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Typecheck
         run: npm run typecheck
       - name: Lint
         run: npm run lint
+      - name: Production build
+        run: npm run build
       - name: Unit/component tests
         run: npm test
       - name: Install Playwright browsers

@@ -46,6 +46,19 @@ test.describe("Mobile Arabic client follow-up", () => {
     await expect(page.getByRole("button", { name: /إرسال|ابعت|اتصل|whatsapp|send/i })).toHaveCount(0);
   });
 
+  test("rejects a pasted WhatsApp message dated after the import clock", async ({ page }) => {
+    await page.goto("/app-studio/salesos/mobile");
+    await page.locator("[data-client-card]").first().getByRole("button", { name: "تسجيل" }).click();
+    await page.getByRole("button", { name: "لصق محادثة" }).click();
+    await page.getByLabel("اسم العميل كما يظهر في المحادثة").fill("Buyer Synth");
+    await page.getByLabel("اسمك كما يظهر في المحادثة").fill("Rep Synth");
+    await page.getByLabel("الصق محادثة الواتساب").fill("[24/08/2099, 10:20:00] - Buyer Synth: ابعتلي الخيارات");
+    await page.getByRole("button", { name: "فحص المحادثة" }).click();
+    await expect(page.getByTestId("paste-result")).toHaveAttribute("data-import-status", "REJECTED");
+    await expect(page.getByTestId("paste-result")).toContainText("FUTURE_EVENT_TIMESTAMP");
+    await expect(page.getByRole("button", { name: "استبدال الجلسة بهذه المحادثة" })).toHaveCount(0);
+  });
+
   test("captures phone screenshots", async ({ page }, testInfo) => {
     await page.goto("/app-studio/salesos/mobile");
     await page.screenshot({ path: testInfo.outputPath("mobile-ar-list.png"), fullPage: true });

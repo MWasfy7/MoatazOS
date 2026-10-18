@@ -89,14 +89,22 @@ guards one of them is a change to the guarantee itself.
 ## Hard rules for every agent
 
 - **Never push to `main`.** Never force-push, never rewrite published
-  history, never delete branches, never merge a PR, never enable
-  auto-merge, never bypass or change branch protection.
+  history, never delete branches, never enable auto-merge, never bypass or
+  change branch protection.
+- **Merge only under the agent merge policy** in
+  `docs/engineering/RELEASE_GATES.md`: either owner-directed in a live
+  session, or a low-risk docs, records, additive-test, or dev-dependency-patch
+  PR that a *different* session verified. Never merge anything touching
+  `src/`, CI, agent instructions, authentication, security permissions,
+  sensitive data, external execution, deployment, customer communication,
+  payments, or a protected invariant.
 - **Never modify another agent's or person's branch.** To change work on
   an existing branch, create your own branch from it and open a PR that
   targets it (or targets `main` and says what it supersedes).
 - **One backlog task per branch and PR.** Use the task ID from
   `docs/engineering/BACKLOG.md` in the branch name and PR title.
-- **Open PRs as drafts.** The owner decides what leaves draft.
+- **Open PRs as drafts.** A PR leaves draft only when it is about to be
+  merged under the merge policy, or when the owner moves it.
 - **No external side effects**: no deployments, no messages, emails,
   WhatsApp, CRM or calendar writes, no publishing, no new third-party
   services, no secrets in the repository.

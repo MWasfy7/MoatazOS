@@ -15,3 +15,6 @@
   any habit of being "helpful" beyond the selected task.
 - GitHub: use the GitHub MCP tools. Name branches with the `claude/`
   prefix (cloud sessions are set up to push to these).
+- Merging: follow "Agent merge policy" in `docs/engineering/RELEASE_GATES.md`
+  exactly. Pass `expectedHeadSha`, use `merge_method: merge`, and report a
+  merge only when the GitHub tool returns `merged: true`.

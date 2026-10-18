@@ -103,6 +103,10 @@ guards one of them is a change to the guarantee itself.
   targets it (or targets `main` and says what it supersedes).
 - **One backlog task per branch and PR.** Use the task ID from
   `docs/engineering/BACKLOG.md` in the branch name and PR title.
+- **Respect task ownership.** Work only on tasks assigned to you in
+  `BACKLOG.md` §5. A task assigned to another agent, or named by any open
+  PR (Claude or Codex), is claimed: skip it. Rules:
+  `docs/engineering/AGENT_COORDINATION.md`.
 - **Open PRs as drafts.** A PR leaves draft only when it is about to be
   merged under the merge policy, or when the owner moves it.
 - **No external side effects**: no deployments, no messages, emails,
@@ -140,5 +144,6 @@ guards one of them is a change to the guarantee itself.
 - `docs/engineering/BACKLOG.md` — executable task list and PR disposition
 - `docs/engineering/RELEASE_GATES.md` — what "done" and "mergeable" mean
 - `docs/engineering/AUTONOMOUS_DEVELOPMENT.md` — unattended-run protocol
+- `docs/engineering/AGENT_COORDINATION.md` — Claude/Codex task ownership
 - `docs/engineering/runs/` — one record per autonomous run
 - `docs/salesos-diagnostic/` — data privacy and import requirements

@@ -95,7 +95,8 @@ as owner direction.
      files listed below.
    - **B. Records:** `docs/engineering/runs/**`, `docs/engineering/reviews/**`,
      and status/link-only edits to `docs/engineering/BACKLOG.md` (no
-     changes to task scope, acceptance, or `Merge:` fields).
+     changes to task scope, acceptance, `Merge:` fields, or the `Agent`
+     column of §5).
    - **C. Additive tests:** new test cases under `tests/` that delete or
      modify no existing line in any test file (pure additions), excluding
      `tests/SafetyBoundary.test.ts`.
@@ -107,6 +108,7 @@ as owner direction.
    `.github/`, `.claude/`, `AGENTS.md`, `CLAUDE.md`,
    `docs/engineering/RELEASE_GATES.md`,
    `docs/engineering/AUTONOMOUS_DEVELOPMENT.md`,
+   `docs/engineering/AGENT_COORDINATION.md`,
    `tests/SafetyBoundary.test.ts`,
    `docs/salesos-diagnostic/data-privacy-requirements.md`, build/test/framework config
    (`*.config.*`, `tsconfig.json`, `next.config.*`, `vercel.json`), and

@@ -59,10 +59,17 @@ that proves it still holds. Automatic failures:
 
 - Performed on a pinned SHA by someone other than the author (a separate
   agent session counts; the authoring session does not).
-- Output: `docs/engineering/reviews/PR-<n>-<sha7>.md` with a verdict
+- The reviewer re-runs the required gate on that exact head SHA. Reading
+  the diff alone is not a review.
+- Output: `docs/engineering/reviews/PR-<n>-<sha7>.md` when the review is
+  itself the task's deliverable (e.g. ECH-01, SOS-02). Otherwise, an
+  "Agent review: <sha7>" or "Agent merge review: <sha7>" PR comment
+  (`AUTONOMOUS_DEVELOPMENT.md` Step 1b). Either way it carries a verdict
   (`APPROVE` / `REQUEST_CHANGES`), commands and results, and findings tied
   to file:line.
 - Any push after the review invalidates it.
+- A review never merges anything by itself. Merging follows the agent
+  merge policy below, unchanged.
 
 ## G5 — Owner decision
 

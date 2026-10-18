@@ -9,6 +9,10 @@ first: change it to `APPROVED` in a commit or PR comment) · `BLOCKED`
 (reason stated) · `IN_REVIEW` (PR open; link it) · `DONE` (merged; link it)
 · `OWNER` (owner action; agents cannot do it).
 
+Each task has a **`Level:`** field (reasoning level 1 Routine / 2
+Standard / 3 Deep, per `AUTONOMOUS_DEVELOPMENT.md` §1b). Agents may raise
+a level when a Level 3 trigger appears, never lower it.
+
 Each task also has a **`Merge:`** field. `agent` means a later run may
 merge it under the agent merge policy (`RELEASE_GATES.md`, Case 2) once
 every condition holds. `owner` means only the owner, or an owner-directed
@@ -24,6 +28,7 @@ PR title: `<TASK-ID>: <summary>`. Last verified: 2026-10-18 against
 
 ### Merged to `main`
 PR #15 (engineering foundation, merged 2026-10-18 as `2aafeef`, owner-directed).
+PR #16 (GOV-01 agent merge policy, merged 2026-10-18 as `757bf41`, owner-directed).
 PRs #1–#7: SalesOS M0 clickable product, M1A NO_ACTION restraint, M1B
 manager intervention, M1C pilot evidence, S1 real input layer, S2
 deterministic decision engine, S3 lead loss report.
@@ -40,6 +45,8 @@ deterministic decision engine, S3 lead loss report.
 | #12 | `wave2/w2-01-echo-semantic-safety` → `echo/build-0-natural-runtime` | draft, CI green (incl. WebKit) | typecheck/lint/build pass; 196/196 unit; 50/50 e2e (Chromium) | Hold for independent exact-revision review (ECH-01). |
 | #13 | `jules-…079d0f07` → `main` | open, CI green | typecheck/lint/build pass; 150/150 unit | Small test-only PR; **mergeable to `main` as-is** (owner). It conflicts with the Codex repair's new required `asOf`; SOS-01 resolves that. |
 | #14 | `feat/salesos-prompt-evaluation-set-…` → `main` | open, CI green | typecheck/lint/build pass; 159/159 unit. Probe: `عايز شقة في الدور العالي` ("I want a high-floor apartment") → **HIGH-confidence `OBJECTION`**; `انا ساكن جنب تاون سنتر` → `PROPERTY_REQUIREMENT` | **Do not merge as-is.** It changes the extractor lexicon without bumping `EXTRACTOR_VERSION` (provenance break) and adds over-broad Arabic terms. Superseded by SOS-03. |
+| #17 | `claude/auto-sos-01-integrate-gate-repair` → `feat/salesos-operator-runtime` | draft, CI green | 191/191 unit; 72/72 e2e; mutation-checked | SOS-01 deliverable. Awaits G4 review and owner merge (`Merge: owner`). |
+| #18 | `claude/auto-eng-01-blocked` → `main` | draft (run record only) | n/a | ENG-01 blocked (`REQUIREMENTS`/`OWNER_DECISION`): the critical-count acceptance is unreachable without a major Vitest bump. Evidence preserved there. See ENG-05. |
 
 ### Other branches
 - `echo/build-0-natural-runtime`: ECHO Build 0, no PR to `main`. Gated on OD-3.
@@ -114,8 +121,9 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 
 ## 2. Approved queue (priority order)
 
-### SOS-01 Integrate the Build 4 gate repair into the operator runtime — `IN_REVIEW`
+### SOS-01 Integrate the Build 4 gate repair into the operator runtime — `IN_REVIEW` (#17)
 - **Merge:** `owner`
+- **Level:** 3 (decision-engine-adjacent evidence rules)
 - **Goal / value:** One correct operator-runtime line. Future-dated
   evidence is rejected everywhere, queue explanations are bilingual, and
   orphaned Codex work isn't lost.
@@ -140,8 +148,14 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 - **Done:** draft PR open against `feat/salesos-operator-runtime`, gate
   results in the body, run record committed.
 
-### ENG-01 Non-breaking dependency security patch — `APPROVED`
+### ENG-01 Non-breaking dependency security patch — `BLOCKED` (#18)
 - **Merge:** `agent`
+- **Level:** 2
+- **Blocker (2026-10-18, #18):** `REQUIREMENTS` / `OWNER_DECISION`. With
+  `vitest@2.1.9` plus non-force `npm audit fix`, advisories drop 28 → 25,
+  but criticals stay at 3. `tinypool` (≤ 2.1.1) is a dependency of
+  `vitest` 2.1.9 and 3.2.x (verified on the registry). **Resume evidence:** an owner choice among
+  #18's three options, or ENG-05 approved.
 - **Goal / value:** Remove critical dev-toolchain advisories (Vitest API
   server RCE, `tinypool` prototype-pollution RCE) without behavior change.
 - **Scope:** `package.json` / `package-lock.json` only. `vitest` 2.1.2 →
@@ -159,6 +173,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 
 ### ECH-01 Independent exact-revision review of PR #12 — `APPROVED`
 - **Merge:** `agent`
+- **Level:** 3 (ECHO semantic interpretation and action routing)
 - **Goal / value:** PR #12 is held for "independent exact-revision
   review". This produces that review so ECHO can move forward.
 - **Scope:** review `wave2/w2-01-echo-semantic-safety@f3dd965` against
@@ -181,6 +196,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 
 ### SOS-02 Exact-head release review of PR #8 — `APPROVED` (after SOS-01)
 - **Merge:** `agent`
+- **Level:** 3 (release gates, decision behavior)
 - **Goal / value:** PR #8 requires an independent approval of its exact
   head before merge. This gives the owner a merge/no-merge answer.
 - **Scope:** after SOS-01 is merged into `feat/salesos-operator-runtime`,
@@ -197,6 +213,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 
 ### SOS-03 Versioned, safer prompt-evaluation lexicon (supersedes #14) — `APPROVED`
 - **Merge:** `owner`
+- **Level:** 3 (decision-engine behavior)
 - **Goal / value:** Keep #14's Egypt/GCC evaluation set while preserving
   provenance and avoiding false objection and requirement signals.
 - **Scope:** new branch from `origin/feat/salesos-prompt-evaluation-set-2389864744267045459`;
@@ -220,6 +237,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 
 ### ENG-03 Refresh README to match the code — `APPROVED`
 - **Merge:** `agent`
+- **Level:** 1
 - **Goal / value:** The README still says the code is "untested against a
   real compiler", and its architecture tree omits Real Input, the Decision
   Engine, and the Lead Loss Report. That misleads anyone reading it.
@@ -231,8 +249,9 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 
 ---
 
-### GOV-01 Low-risk agent merge policy — `IN_REVIEW`
+### GOV-01 Low-risk agent merge policy — `DONE` (#16)
 - **Merge:** `owner` (merged only on owner direction; this policy file is never agent-eligible)
+- **Level:** 3
 - **Goal / value:** let routine engineering finish without the owner
   operating GitHub, while every risky change still waits for the owner.
 - **Scope:** `AGENTS.md`, `CLAUDE.md`, `RELEASE_GATES.md` (agent merge
@@ -242,6 +261,39 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   and domains, requires a different-session re-verification, pinned SHA,
   green CI, and a GitHub-confirmed merge; full gate green.
 - **Done:** merged on owner direction.
+
+### GOV-02 Balanced Mode resource and reasoning policy — `IN_REVIEW`
+- **Merge:** `owner` (agent-instruction and release-policy files are never agent-eligible)
+- **Level:** 3 (changes affecting multiple agents and the release gates)
+- **Goal / value:** more verified progress per unit of usage, with no
+  reduction in validation or safety.
+- **Scope:** `AGENTS.md` and `CLAUDE.md` (Balanced Mode sections);
+  `AUTONOMOUS_DEVELOPMENT.md` (§1a limits, §1b reasoning levels, §1c
+  models, §1d context, Step 1b review pass, §2c blockers, metrics block,
+  §5a efficiency assessment, §6 routine, corrected to the real 01:07
+  schedule); `RELEASE_GATES.md` (G4 review-record clarification only;
+  merge policy unchanged); this file (`Level:` fields, statuses, GOV-02,
+  ENG-05, ENG-06).
+- **Acceptance:** no change to the protected invariants or to agent merge
+  policy Cases 1 and 2; one nightly schedule documented (01:07); full gate
+  green; CI green.
+- **Done:** merged by the owner.
+
+### ENG-06 Efficiency assessment after five completed runs — `APPROVED`
+- **Merge:** `agent`
+- **Level:** 1
+- **Goal / value:** check that Balanced Mode yields verified progress, and
+  find repeated or unnecessary work.
+- **Scope:** `docs/engineering/runs/EFFICIENCY-01.md` only, per
+  `AUTONOMOUS_DEVELOPMENT.md` §5a, built from the run records' metrics
+  blocks.
+- **Dependencies:** GOV-02 merged, **and** at least five run records dated
+  after that merge with `Completed: yes`. Until then the task is not
+  eligible; skip it without comment.
+- **Acceptance:** ≤ 1 page; every figure traceable to a named run record;
+  no usage figures that the records don't contain.
+- **Tests:** none (docs-only; CI still runs). **Risks:** none. **Done:**
+  draft PR to `main`, eligible for a later run's Case 2 merge.
 
 ## 3. Blocked
 
@@ -277,6 +329,26 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 ---
 
 ## 4. Proposed (owner approval required before any code)
+
+### ENG-05 Vitest 2 → 4 migration (clears the tinypool and Vitest criticals) — `PROPOSED`
+- **Merge:** `owner` (major dependency upgrade)
+- **Level:** 3 (major dependency migration)
+- **Evidence (npm registry, 2026-10-18):**
+  - `tinypool` is depended on by `vitest@2.1.9` (via #18's audit) and `vitest@3.2.7` (`^1.1.1`).
+  - `vitest@4.1.11` has **no** `tinypool` dependency, supports Node
+    `^20 || ^22 || >=24` (CI uses Node 20), is outside the Vitest advisory
+    range (≤ 4.1.10), and was published 2026-08-18 (≥ 14 days).
+  - `vitest@5.x` (suggested in #18) requires Node `^22.12`, which would
+    force a CI change, and `5.0.5` was published 2026-10-15 (< 14 days).
+- **Scope:** `package.json` devDependencies (`vitest@4.1.11` exact),
+  `package-lock.json`, `vitest.config.ts` only if the v4 config API
+  requires it. No source or CI changes.
+- **Acceptance:** `npm audit` shows no `tinypool` or `vitest` advisory;
+  test count unchanged (152 on `main` at the time of writing), 0 skipped;
+  full gate green; CI green on Node 20 including WebKit.
+- **Risks:** jsdom/environment and mocking API changes across two majors.
+  Halt if any test needs its assertions changed to pass.
+- **Done:** draft PR; owner merge.
 
 Each item lists goal, scope, dependencies, acceptance, tests, and risks
 in compact form. Before approval, refine it to the SOS-01 level of detail.

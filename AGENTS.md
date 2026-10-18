@@ -119,6 +119,34 @@ guards one of them is a change to the guarantee itself.
 - **Stop when uncertain.** If a task is ambiguous, conflicts with an
   invariant, or needs an owner decision, record it as blocked; don't guess.
 
+## Balanced Mode (resource policy)
+
+The owner runs this repository in **Balanced Mode**: more verified
+progress per unit of usage, with no reduction in quality or safety.
+Details are in `docs/engineering/AUTONOMOUS_DEVELOPMENT.md` §1a–§2c.
+
+- One scheduled development run per night; one implementation task per
+  run; at most two bounded repair attempts; no parallel coding sessions.
+- **Validation is never reduced.** The full gate runs for every change.
+  Never skip or sample tests to save usage.
+- Match effort to the task's reasoning level: **1 Routine**, **2
+  Standard** (default), or **3 Deep**. Level 3 covers architecture,
+  decision-engine behavior, ECHO semantics and routing, security,
+  major dependency migrations, persistent data, repeated failures, and
+  release-gate changes, and it needs a short decision record before
+  editing.
+- Load only the context the task needs. Durable decisions and evidence
+  go into GitHub (run records, review records, PRs, backlog), never only
+  into conversation memory.
+- Classify every blocker (`AUTHORIZATION`, `ENVIRONMENT`, `DEPENDENCY`,
+  `TEST_FAILURE`, `ARCHITECTURE`, `REQUIREMENTS`, `SECURITY`,
+  `OWNER_DECISION`). Never retry an identical failed approach without new
+  evidence.
+- Never estimate token usage. Record usage only when the platform exposes
+  it to you.
+- Balanced Mode never widens the merge policy or relaxes a protected
+  invariant.
+
 ## Code conventions
 
 - TypeScript strict with `noUncheckedIndexedAccess`; import via `@/`.

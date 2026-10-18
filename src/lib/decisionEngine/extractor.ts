@@ -2,7 +2,7 @@ import type { NormalizedSalesEvent } from "@/lib/realInput";
 import { maskPii, stableHash } from "@/lib/realInput";
 import type { EvidenceSignal, EvidenceSignalType, ExtractionResult, SignalConfidence } from "./types";
 
-export const EXTRACTOR_VERSION = "salesos-evidence-v0.1.0";
+export const EXTRACTOR_VERSION = "salesos-evidence-v0.2.0";
 const MAX_EXCERPT = 160;
 
 const LEXICON: Partial<Record<EvidenceSignalType, string[]>> = {
@@ -10,8 +10,8 @@ const LEXICON: Partial<Record<EvidenceSignalType, string[]>> = {
   BUYER_EXPLICIT_PAUSE: ["not now", "pause", "wait until", "do not contact", "stop contacting", "later this month", "مش دلوقتي", "توقف", "استنى", "انتظر", "لا تتواصل"],
   TIMING_SIGNAL: ["next month", "next quarter", "this week", "tomorrow", "الشهر القادم", "الأسبوع القادم", "غداً", "بكرة"],
   BUDGET_SIGNAL: ["budget", "afford", "egp", "aed", "sar", "ميزانية", "مليون", "جنيه", "درهم", "ريال", "مقدم", "أقساط", "اقساط", "دفعة"],
-  PROPERTY_REQUIREMENT: ["bedroom", "unit", "villa", "apartment", "location", "townhouse", "غرفة", "وحدة", "فيلا", "شقة", "منطقة", "تاون هاوس", "تاون", "شاليه"],
-  OBJECTION: ["too expensive", "concern", "not convinced", "غالي", "عالي", "مشكلة", "غير مقتنع", "السعر عالي"],
+  PROPERTY_REQUIREMENT: ["bedroom", "unit", "villa", "apartment", "location", "townhouse", "غرفة", "وحدة", "فيلا", "شقة", "منطقة", "تاون هاوس", "شاليه"],
+  OBJECTION: ["too expensive", "concern", "not convinced", "غالي", "مشكلة", "غير مقتنع", "السعر عالي"],
   BUYER_INITIATED_REENGAGEMENT: ["following up", "back to this", "ready to continue", "رجعت", "نكمل", "جاهز نكمل"],
   PROMISED_FOLLOWUP: ["i will follow up", "will send", "سأتابع", "هبعت", "سأرسل"],
   PROCUREMENT_SIGNAL: ["procurement", "contract review", "legal review", "security review", "المشتريات", "العقد", "مراجعة قانونية"],

@@ -133,3 +133,36 @@ describe("SalesOS Rebuilt Prompt Compact Evaluation Set (Egypt & GCC)", () => {
     }
   });
 });
+
+describe("SalesOS extractor lexicon false-positive guards (SOS-03)", () => {
+  const buyer = (text: string) => [{
+    organizationId: "org-eval-synthetic",
+    salesFloorId: "floor-cairo-dubai",
+    leadId: "lead-lex-001",
+    actorId: "buyer-lex-001",
+    actorRole: "BUYER" as const,
+    direction: "INBOUND" as const,
+    channel: "WHATSAPP" as const,
+    eventId: "lex-evt-001",
+    occurredAt: "2026-01-10T10:00:00+02:00",
+    eventType: "MESSAGE",
+    sourceRef: "eval:lex-evt-001",
+    textOrSummary: text,
+    metadata: {},
+  }];
+  const types = (text: string) => extractEvidence(buyer(text)).signals.map((s) => s.type);
+
+  it("reports the bumped extractor version", () => {
+    expect(extractEvidence(buyer("السعر عالي شوية")).extractorVersion).toBe("salesos-evidence-v0.2.0");
+  });
+  it("does not read a high-floor preference as an objection", () => {
+    expect(types("عايز شقة في الدور العالي")).not.toContain("OBJECTION");
+    expect(types("الدور عالي وفيو حلو")).not.toContain("OBJECTION");
+  });
+  it("does not read living near a landmark as a property requirement", () => {
+    expect(types("انا ساكن جنب تاون سنتر")).not.toContain("PROPERTY_REQUIREMENT");
+  });
+  it("still reads a price complaint as an objection", () => {
+    expect(types("السعر عالي شوية")).toContain("OBJECTION");
+  });
+});

@@ -9,6 +9,11 @@ first: change it to `APPROVED` in a commit or PR comment) · `BLOCKED`
 (reason stated) · `IN_REVIEW` (PR open; link it) · `DONE` (merged; link it)
 · `OWNER` (owner action; agents cannot do it).
 
+Each task also has a **`Merge:`** field. `agent` means a later run may
+merge it under the agent merge policy (`RELEASE_GATES.md`, Case 2) once
+every condition holds. `owner` means only the owner, or an owner-directed
+session, merges it. Agents never change a `Merge:` field.
+
 Branch naming: `claude/auto-<task-id>-<short-slug>` (lowercase).
 PR title: `<TASK-ID>: <summary>`. Last verified: 2026-10-18 against
 `origin/main@632fd46`.
@@ -18,6 +23,7 @@ PR title: `<TASK-ID>: <summary>`. Last verified: 2026-10-18 against
 ## 0. Current state (audit 2026-10-18)
 
 ### Merged to `main`
+PR #15 (engineering foundation, merged 2026-10-18 as `2aafeef`, owner-directed).
 PRs #1–#7: SalesOS M0 clickable product, M1A NO_ACTION restraint, M1B
 manager intervention, M1C pilot evidence, S1 real input layer, S2
 deterministic decision engine, S3 lead loss report.
@@ -58,6 +64,9 @@ copied SalesOS workflow. See ARCHITECTURE §4b and OD-3.
 ### OD-1 Protect `main` — `OWNER` — do first
 - **Why:** `main` has no branch protection and no rulesets (verified via
   the GitHub API). Any agent with push access can push to it directly.
+  Agents can't set this: the session's GitHub tools expose no
+  repository-settings or branch-protection endpoint (re-checked
+  2026-10-18).
 - **Steps:** GitHub → MoatazOS → Settings → Branches → Add branch ruleset
   (or classic rule) for `main`: require a pull request before merging;
   require status check **`validate`**; block force pushes; restrict
@@ -105,7 +114,8 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 
 ## 2. Approved queue (priority order)
 
-### SOS-01 Integrate the Build 4 gate repair into the operator runtime — `APPROVED`
+### SOS-01 Integrate the Build 4 gate repair into the operator runtime — `IN_REVIEW`
+- **Merge:** `owner`
 - **Goal / value:** One correct operator-runtime line. Future-dated
   evidence is rejected everywhere, queue explanations are bilingual, and
   orphaned Codex work isn't lost.
@@ -131,6 +141,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   results in the body, run record committed.
 
 ### ENG-01 Non-breaking dependency security patch — `APPROVED`
+- **Merge:** `agent`
 - **Goal / value:** Remove critical dev-toolchain advisories (Vitest API
   server RCE, `tinypool` prototype-pollution RCE) without behavior change.
 - **Scope:** `package.json` / `package-lock.json` only. `vitest` 2.1.2 →
@@ -147,6 +158,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 - **Done:** draft PR to `main` with audit diff.
 
 ### ECH-01 Independent exact-revision review of PR #12 — `APPROVED`
+- **Merge:** `agent`
 - **Goal / value:** PR #12 is held for "independent exact-revision
   review". This produces that review so ECHO can move forward.
 - **Scope:** review `wave2/w2-01-echo-semantic-safety@f3dd965` against
@@ -168,6 +180,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 - **Done:** docs-only draft PR to `main` with the review.
 
 ### SOS-02 Exact-head release review of PR #8 — `APPROVED` (after SOS-01)
+- **Merge:** `agent`
 - **Goal / value:** PR #8 requires an independent approval of its exact
   head before merge. This gives the owner a merge/no-merge answer.
 - **Scope:** after SOS-01 is merged into `feat/salesos-operator-runtime`,
@@ -183,6 +196,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 - **Done:** docs-only draft PR to `main`.
 
 ### SOS-03 Versioned, safer prompt-evaluation lexicon (supersedes #14) — `APPROVED`
+- **Merge:** `owner`
 - **Goal / value:** Keep #14's Egypt/GCC evaluation set while preserving
   provenance and avoiding false objection and requirement signals.
 - **Scope:** new branch from `origin/feat/salesos-prompt-evaluation-set-2389864744267045459`;
@@ -205,6 +219,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 - **Done:** draft PR to `main`.
 
 ### ENG-03 Refresh README to match the code — `APPROVED`
+- **Merge:** `agent`
 - **Goal / value:** The README still says the code is "untested against a
   real compiler", and its architecture tree omits Real Input, the Decision
   Engine, and the Lead Loss Report. That misleads anyone reading it.
@@ -215,6 +230,18 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   (docs-only; CI still runs). **Risks:** none. **Done:** draft PR to `main`.
 
 ---
+
+### GOV-01 Low-risk agent merge policy — `IN_REVIEW`
+- **Merge:** `owner` (merged only on owner direction; this policy file is never agent-eligible)
+- **Goal / value:** let routine engineering finish without the owner
+  operating GitHub, while every risky change still waits for the owner.
+- **Scope:** `AGENTS.md`, `CLAUDE.md`, `RELEASE_GATES.md` (agent merge
+  policy), `AUTONOMOUS_DEVELOPMENT.md` (Step 1b merge pass, saved prompt),
+  this file (`Merge:` fields).
+- **Acceptance:** policy lists eligible classes and never-eligible paths
+  and domains, requires a different-session re-verification, pinned SHA,
+  green CI, and a GitHub-confirmed merge; full gate green.
+- **Done:** merged on owner direction.
 
 ## 3. Blocked
 

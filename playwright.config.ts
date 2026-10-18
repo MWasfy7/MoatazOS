@@ -25,7 +25,7 @@ export default defineConfig({
   webServer: {
     command: devServerCommand,
     url: `http://localhost:${port}`,
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 120 * 1000,
   },
   projects: [

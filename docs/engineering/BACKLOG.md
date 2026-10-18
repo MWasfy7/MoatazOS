@@ -229,6 +229,46 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   on `main`; no claims beyond the verified ones. **Tests:** none
   (docs-only; CI still runs). **Risks:** none. **Done:** draft PR to `main`.
 
+### ENG-05 Opt-in Graphify token-efficiency pilot — `IN_REVIEW`
+- **Merge:** `owner`
+- **Origin:** owner request in a live session, 2026-10-18. Owner-scoped:
+  the nightly routine must not pick, extend, or merge it.
+- **Goal / value:** find out, with measured evidence, whether the
+  `graphifyy` CLI (PyPI package with two y's; the command is `graphify`)
+  reduces Claude Code context use on cross-module MoatazOS questions
+  without reducing answer quality.
+- **Scope:** `scripts/graphify-pilot.sh`,
+  `docs/engineering/GRAPHIFY_PILOT.md`, `graphify-out/` and `graph.json`
+  appended to `.gitignore` and a new `.claudeignore` (existing entries
+  kept), this entry, and a run record. Out of scope: `src/`,
+  `package.json`/lockfile, `.claude/`, `AGENTS.md`, `CLAUDE.md`, CI,
+  `graphify install`/`--project` hooks, semantic/LLM extraction
+  (`--mode deep`, any `--backend`, `cluster-only`/`label`), and the
+  nightly routine.
+- **Dependencies:** none.
+- **Acceptance:**
+  1. `uv tool install graphifyy==0.9.55` installs; `graphify --version`
+     prints `0.9.55`.
+  2. `bash scripts/graphify-pilot.sh` exits 0 from the repo root and
+     writes a non-empty `graphify-out/graph.json` using `--code-only`,
+     with no network access during extraction.
+  3. Re-running the script adds no duplicate ignore lines; `git status`
+     shows no generated graph files.
+  4. At least one `graphify query` result is checked line by line against
+     the source, and any missed or wrong link is recorded.
+  5. The run record states whether Claude usage/cost telemetry is
+     available and where, and claims no token saving that was not
+     measured.
+  6. Full local gate passes with no changes outside the scope above.
+- **Follow-up (not this task):** the controlled A/B evaluation in
+  `GRAPHIFY_PILOT.md` and any hook integration are separate tasks,
+  each needing owner approval.
+- **Tests:** full local gate; smoke test in a network-isolated namespace.
+- **Risks:** third-party executable (supply chain): pinned version,
+  installed as a user tool, never a project dependency. Graph answers can
+  be incomplete; always verify in source.
+- **Done:** draft PR to `main`, owner merges.
+
 ---
 
 ### GOV-01 Low-risk agent merge policy — `IN_REVIEW`

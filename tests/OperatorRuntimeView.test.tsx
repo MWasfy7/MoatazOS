@@ -79,16 +79,24 @@ describe("Build 4 Operator Runtime UI", () => {
     const user = userEvent.setup();
     const { container } = renderWithLocale(<OperatorRuntime />);
     const expectations = [
-      ["CURRENT_BUYER_SIGNAL", "A fresh attributable buyer signal is decision-grade."],
-      ["OVERDUE_SELLER_COMMITMENT", "No later completion record closes the current commitment."],
-      ["CONTRADICTORY_EVIDENCE", "The current contradiction remains unresolved."],
-      ["ACTIVE_BUYER_PAUSE", "seller obligations cannot authorize contact"],
-      ["AGING_EVIDENCE_GAP", "silence still proves no intent"],
+      ["CURRENT_BUYER_SIGNAL", "Current decision-grade buyer evidence supports a bounded next step."],
+      ["OVERDUE_SELLER_COMMITMENT", "An attributable seller commitment is overdue."],
+      ["CONTRADICTORY_EVIDENCE", "Attributable sources conflict"],
+      ["ACTIVE_BUYER_PAUSE", "An attributable buyer pause is active."],
+      ["AGING_EVIDENCE_GAP", "lacks decision-grade evidence"],
     ] as const;
     for (const [reason, explanation] of expectations) {
       const button = container.querySelector<HTMLButtonElement>(`[data-queue-reason="${reason}"]`)!;
       await user.click(button);
       expect(screen.getByTestId("decision-workspace")).toHaveTextContent(explanation);
     }
+  });
+
+  it("B4-R08 renders the computed runtime explanation instead of a parallel section template", async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithLocale(<OperatorRuntime />);
+    const button = container.querySelector<HTMLButtonElement>('[data-queue-reason="OVERDUE_SELLER_COMMITMENT"]')!;
+    await user.click(button);
+    expect(screen.getByTestId("decision-workspace")).toHaveTextContent("The commitment due at 2026-09-04T12:00:00.000Z has no later completion record.");
   });
 });

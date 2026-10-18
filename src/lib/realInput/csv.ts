@@ -1,4 +1,5 @@
 import {
+  isMateriallyFutureTimestamp,
   normalizeActorRole,
   normalizeChannel,
   normalizeDirection,
@@ -78,6 +79,10 @@ export function parseCrmCsv(input: string, context: ImportContext): ImportResult
     if (!direction) issues.push({ severity: "ERROR", code: "INVALID_DIRECTION", message: "Direction is not recognized.", line: record.line });
     if (!actorRole) issues.push({ severity: "ERROR", code: "INVALID_ACTOR_ROLE", message: "Actor role is not recognized.", line: record.line });
     if (!occurredAt || !channel || !direction || !actorRole) continue;
+    if (isMateriallyFutureTimestamp(occurredAt, context.asOf)) {
+      issues.push({ severity: "ERROR", code: "FUTURE_EVENT_TIMESTAMP", message: "Event occurrence is materially later than the import clock.", line: record.line });
+      continue;
+    }
 
     const phone = normalizePhone(row.contact_phone ?? "");
     if (row.contact_phone && !phone) {
@@ -97,7 +102,7 @@ export function parseCrmCsv(input: string, context: ImportContext): ImportResult
     const metadata = Object.fromEntries(
       headers
         .filter((header) => header.startsWith("meta_") && row[header])
-        .map((header) => [header.slice(5), row[header] ?? ""]),
+        .map((header) => [metadataKey(header.slice(5)), row[header] ?? ""]),
     );
     const event: NormalizedSalesEvent = {
       organizationId: context.organizationId.trim(),
@@ -189,6 +194,10 @@ function parseCsvRecords(input: string): { records: CsvRecord[]; issues: ImportI
 
 function normalizeHeader(value: string): string {
   return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function metadataKey(value: string): string {
+  return value === "due_at" || value === "dueat" ? "dueAt" : value;
 }
 
 function hasErrors(issues: ImportIssue[]): boolean {

@@ -58,9 +58,10 @@ describe("Build 4 command queue", () => {
       metadata: { ...commitmentTemplate.metadata, dueAt: "2026-09-04T12:00:00.000Z" },
     }));
     const item = buildCommandQueue([{ ...protectedOpportunity, events: [...protectedOpportunity.events, ...commitments] }], SYNTHETIC_OPERATOR_AS_OF)[0]!;
-    expect(item).toMatchObject({ section: "WAIT_PROTECTED", reasonCode: "ACTIVE_BUYER_PAUSE", evidenceContract: { recommendation: "WAIT" } });
-    expect(item.whyNow).toMatch(/seller obligations cannot authorize buyer contact/i);
-    expect(buildCommandQueue([{ ...protectedOpportunity, events: [...protectedOpportunity.events, ...commitments] }], "2026-09-13T09:00:00.000Z")[0]).toMatchObject({ section: "WAIT_PROTECTED", reasonCode: "ACTIVE_BUYER_PAUSE" });
+    expect(item).toMatchObject({ section: "WAIT_PROTECTED", reasonCode: "ACTIVE_BUYER_PAUSE_WITH_OVERDUE_COMMITMENT", evidenceContract: { recommendation: "WAIT" } });
+    expect(item.whyNow).toMatch(/administrative reconciliation.*cannot authorize buyer contact/i);
+    expect(item.recommendation).toMatch(/reclassify or reconcile.*without contacting the buyer/i);
+    expect(buildCommandQueue([{ ...protectedOpportunity, events: [...protectedOpportunity.events, ...commitments] }], "2026-09-13T09:00:00.000Z")[0]).toMatchObject({ section: "WAIT_PROTECTED", reasonCode: "ACTIVE_BUYER_PAUSE_WITH_OVERDUE_COMMITMENT" });
   });
 
   it("B4-R02 allows valid new buyer evidence to supersede wait while preserving restraint history", () => {

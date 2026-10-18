@@ -73,7 +73,7 @@ export function MobileFollowUp() {
     if (!open) return;
     setParsed(parseWhatsappExport(chat, {
       organizationId: "mobile-session", salesFloorId: "mobile-session", sourceId: "mobile-paste",
-      defaultTimezoneOffset: "+02:00", dateOrder: "DMY",
+      asOf: new Date().toISOString(), defaultTimezoneOffset: "+02:00", dateOrder: "DMY",
       participants: [
         { aliases: [buyerAlias.trim()], actorId: "buyer-mobile", actorRole: "BUYER", leadId: open.queueItem.opportunityId, direction: "INBOUND" },
         { aliases: [repAlias.trim()], actorId: "rep-mobile", actorRole: "REP", leadId: open.queueItem.opportunityId, direction: "OUTBOUND" },

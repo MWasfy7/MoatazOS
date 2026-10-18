@@ -51,6 +51,8 @@ export interface ImportContext {
   organizationId: string;
   salesFloorId: string;
   sourceId: string;
+  /** Fixed import clock used to reject event occurrences that have not happened yet. */
+  asOf: string;
   /** Fixed UTC offset used only when a source timestamp has no offset. */
   defaultTimezoneOffset: string;
 }

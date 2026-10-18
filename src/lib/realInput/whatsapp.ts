@@ -1,4 +1,4 @@
-import { localPartsToIso, normalizeIdentity, parseOffsetMinutes, requiredContextIssues, stableHash } from "./normalization";
+import { isMateriallyFutureTimestamp, localPartsToIso, normalizeIdentity, parseOffsetMinutes, requiredContextIssues, stableHash } from "./normalization";
 import type { ImportIssue, ImportResult, NormalizedSalesEvent, WhatsappImportOptions, WhatsappParticipant } from "./types";
 
 const MESSAGE_HEADER = /^\[?(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?\]?\s+-\s+([^:]+):\s?(.*)$/;
@@ -54,6 +54,10 @@ export function parseWhatsappExport(input: string, options: WhatsappImportOption
     const occurredAt = whatsappTimestamp(message.dateParts, options.dateOrder, offsetMinutes);
     if (!occurredAt) {
       issues.push({ severity: "ERROR", code: "INVALID_TIMESTAMP", message: "WhatsApp timestamp is malformed or ambiguous.", line: message.line });
+      continue;
+    }
+    if (isMateriallyFutureTimestamp(occurredAt, options.asOf)) {
+      issues.push({ severity: "ERROR", code: "FUTURE_EVENT_TIMESTAMP", message: "Message occurrence is materially later than the import clock.", line: message.line });
       continue;
     }
     if (!message.text.trim()) {

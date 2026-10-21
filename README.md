@@ -1,35 +1,36 @@
-# MoatazOS M0 - SalesOS Clickable Product
+# MoatazOS - App Studio (SalesOS)
 
 An evidence-first, execution-free decision-review application:
 **App Studio -> SalesOS -> Command Center -> Opportunity -> Decision Card.**
 
-All data in this milestone is deterministic synthetic fixture data.
+All data is deterministic synthetic fixture data (or text the operator
+pastes into the import preview, which is masked and kept in memory only).
 There is no live backend, no network call, and no execution surface
 of any kind - no Send, Call, Schedule, CRM write, pricing, billing, or
 override control exists anywhere in this codebase.
 
-## Validation status
+## Engineering and agent docs
 
-This codebase was originally authored in a network-restricted sandbox.
-It has since been validated on August 25, 2026 with the following
-commands:
+- [`AGENTS.md`](AGENTS.md) - rules and protected invariants for every
+  contributor and coding agent.
+- [`docs/engineering/`](docs/engineering/) - architecture, backlog,
+  release gates, and the autonomous-run protocol.
+- [`docs/salesos-diagnostic/`](docs/salesos-diagnostic/) - CRM/WhatsApp
+  import schema and data privacy requirements.
 
-- `npm install`
-- `npm run typecheck`
-- `npm run lint`
-- `npm test`
-- `npx playwright install`
-- `npm run test:e2e`
+Validation is run by `.github/workflows/m0-salesos-validation.yml` and
+locally with the commands under Scripts. Passing CI is not release
+readiness; see `docs/engineering/RELEASE_GATES.md`.
 
 ## Requirements
 
-- Node.js 18.18+ (Node 20 LTS recommended)
+- Node.js 18.18+ (CI uses Node 20)
 - npm 10+
 
 ## Setup
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -47,7 +48,7 @@ Then open http://localhost:3000 - it redirects to
 | `npm run lint` | Next.js/ESLint |
 | `npm test` | Vitest unit/component tests (single run) |
 | `npm run test:watch` | Vitest in watch mode |
-| `npm run test:e2e` | Playwright end-to-end tests (requires `npx playwright install` first) |
+| `npm run test:e2e` | Playwright end-to-end tests (needs Playwright browsers; run `npx playwright install` first) |
 
 ## What to click through
 
@@ -74,6 +75,11 @@ Then open http://localhost:3000 - it redirects to
    opportunity (a fully Arabic-authored fixture).
 9. Resize to a mobile viewport (or use the Playwright mobile project)
    to see the mobile layout.
+10. From the Command Center, open the other SalesOS pages:
+    **Import** (`/app-studio/salesos/import`), **Decision Engine**
+    (`/app-studio/salesos/decision-engine`), **Lead Loss Report**
+    (`/app-studio/salesos/lead-loss-report`) and **Pilot Evidence**
+    (`/app-studio/salesos/pilot-evidence`).
 
 ## Architecture
 
@@ -81,7 +87,9 @@ Then open http://localhost:3000 - it redirects to
 src/
   app/                      Next.js App Router pages
     app-studio/             App Studio shell (sidebar + module nav)
-      salesos/              Command Center + Opportunity pages
+      salesos/              Command Center, opportunity, import,
+                            decision-engine, lead-loss-report,
+                            pilot-evidence pages
   components/
     app-studio/             Sidebar, language switch
     salesos/
@@ -91,10 +99,20 @@ src/
         panels/             One panel per decision state
         InspectionRail/     The actionless inspection system
         SnapshotComparison/ Evidence Delta (before/after) view
+      RealInputWorkspace.tsx    CSV / WhatsApp import preview
+      DecisionEngineReview.tsx  Engine output review
+      LeadLossReportView.tsx    Lead Loss Report
+      PilotEvidenceReview.tsx   Frozen synthetic pilot aggregate
+    shared/                 DemoModeBadge
   lib/
     types.ts                Domain model + checkSnapshotIntegrity
-    fixtures/index.ts       All 11 deterministic synthetic fixtures
+    fixtures/               Deterministic synthetic fixtures
+    realInput/              CRM CSV + WhatsApp parsers, PII masking
+    decisionEngine/         Evidence extractor + versioned policy
+    leadLossReport/         Lead Loss Report metrics
     i18n/                   English + Arabic dictionaries, LocaleProvider
+docs/engineering/           Architecture, backlog, gates, run records
+docs/salesos-diagnostic/    Import schema and privacy requirements
 tests/                      Vitest unit/component tests
 tests/e2e/                  Playwright end-to-end tests
 ```
@@ -122,16 +140,19 @@ tests/e2e/                  Playwright end-to-end tests
 
 ## Known limitations
 
-- Untested against a real compiler/test runner/browser (see the
-  network-access note above) - treat this as a careful first pass,
-  not a verified green build.
+- Playwright's mobile project runs on WebKit in GitHub Actions. Cloud
+  sessions run it on Chromium emulation only, which is not WebKit
+  evidence.
 - Fixture-authored free text (e.g. a `NO_ACTION` snapshot's specific
   restraint reason) is only as bilingual as the individual fixture
   that wrote it; only the surrounding chrome/UI copy is guaranteed
   translated via the `en`/`ar` dictionaries.
-- Manager Review and Pilot Evidence drawers are intentionally empty in
-  this milestone - there is no data source for either yet, and the
-  drawers say so honestly rather than fabricating content.
+- The Manager Review and Pilot Evidence inspection drawers show an
+  honest empty state; manager review and pilot evidence content is
+  shown in the inline review and the Pilot Evidence page instead.
+- Imported data is parsed in the browser, masked, and held in memory
+  only. The Decision Engine page is a review surface; the Command
+  Center cards still use hand-authored fixtures, not engine output.
 - No dark/light theme toggle - this milestone ships a single dark
   theme matching the "restrained premium enterprise" direction.
 - No real persistence of the language preference across a reload

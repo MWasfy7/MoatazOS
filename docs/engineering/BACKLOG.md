@@ -218,7 +218,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   assertions only, in the same commit, and list them.
 - **Done:** draft PR to `main`.
 
-### ENG-03 Refresh README to match the code — `APPROVED`
+### ENG-03 Refresh README to match the code — `IN_REVIEW`
 - **Merge:** `agent`
 - **Goal / value:** The README still says the code is "untested against a
   real compiler", and its architecture tree omits Real Input, the Decision

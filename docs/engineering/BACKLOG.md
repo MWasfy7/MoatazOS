@@ -157,7 +157,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   regenerating the lockfile, never by hand-editing.
 - **Done:** draft PR to `main` with audit diff.
 
-### ECH-01 Independent exact-revision review of PR #12 — `APPROVED`
+### ECH-01 Independent exact-revision review of PR #12 — `IN_REVIEW`
 - **Merge:** `agent`
 - **Goal / value:** PR #12 is held for "independent exact-revision
   review". This produces that review so ECHO can move forward.

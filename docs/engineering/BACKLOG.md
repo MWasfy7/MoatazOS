@@ -295,3 +295,44 @@ in compact form. Before approval, refine it to the SOS-01 level of detail.
 | ECH-10 | ECHO | Durable session memory for in-app ECHO | Memory-only → explicit export/import, then a persistence ADR | ECH-03 | Restart-safe without browser storage until approved | Invariant 8 (persistence) |
 | ECH-11 | ECHO | Routing reliability: NLF-50 pass rate tracked per build | Uses ECH-02 scorecard | ECH-02 | Trend table in the PR | Teaching to the test |
 | ECH-12 | ECHO | Tool orchestration design (ADR only) | Permission model, proposal → approval → execution separation | ECH-03, MOS-10 | Owner-approved ADR | External side effects |
+
+---
+
+## 5. Agent ownership registry
+
+Rules: `docs/engineering/AGENT_COORDINATION.md`. Only the owner changes the
+`Agent` column. Agents update status and PR links on their own rows only.
+GitHub PR state wins if this table disagrees. Inventory: 2026-10-18,
+`origin/main@757bf41`; no Codex PR or active `codex/` task branch found.
+
+| Task | Agent | Status | Depends on | PR / branch |
+|---|---|---|---|---|
+| SOS-01 | claude | `IN_REVIEW` | — | #17 `claude/auto-sos-01-integrate-gate-repair` → `feat/salesos-operator-runtime` |
+| ENG-01 | claude | `BLOCKED` | owner choice in #18 | #18 `claude/auto-eng-01-blocked` |
+| ECH-01 | codex | `APPROVED`, assigned, not yet claimed | — | reviews #12 @ `f3dd965` read-only; deliverable is a new `codex/` draft PR `ECH-01: …` to `main` |
+| SOS-02 | claude | `APPROVED`, waiting | SOS-01 merged; OD-4 | — |
+| SOS-03 | claude | `APPROVED` | — | — (supersedes #14) |
+| ENG-03 | claude | `APPROVED` | — | — |
+| GOV-02 | claude | `IN_REVIEW` | — | #19 `claude/auto-gov-02-balanced-mode` |
+| ENG-05 | claude | `IN_REVIEW` (owner-scoped) | — | #20 `claude/auto-eng-05-graphify-token-pilot`. **ID clash:** #19 also proposes a different `ENG-05` (Vitest 2 → 4). Owner renames one. |
+| GOV-03 | claude | `IN_REVIEW` | — | `claude/auto-gov-03-dual-agent-coordination` (this registry) |
+| ECH-02, ECH-03, ECH-04 | unassigned | `BLOCKED` | OD-3, ECH-01 | — |
+| OD-1 … OD-6 | owner | `OWNER` | — | — |
+
+PRs with no task here (#8, #9, #11, #12, #13, #14, and the
+`codex/salesos-build4-gate-repair` branch folded into SOS-01) belong to
+the owner or earlier sessions. No agent pushes to them.
+
+### GOV-03 Dual-agent coordination policy — `IN_REVIEW`
+- **Merge:** `owner` (agent-instruction and release-policy files)
+- **Goal / value:** Claude Code and Codex Cloud work in parallel without
+  duplicating or overwriting each other's tasks.
+- **Scope:** new `AGENT_COORDINATION.md`; this §5; one hard rule and one
+  index line in `AGENTS.md`; `RELEASE_GATES.md` Case 2 tightened so the
+  coordination file and `Agent` assignments are never agent-merged; a run
+  record. No schedule, workflow, `src/`, or test changes.
+- **Dependencies:** none.
+- **Acceptance:** with this policy, the nightly selection skips ECH-01
+  (assigned to codex) and picks SOS-03; the merge policy is otherwise
+  unchanged; full gate green.
+- **Done:** merged by the owner.

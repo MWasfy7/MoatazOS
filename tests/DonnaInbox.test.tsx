@@ -71,6 +71,23 @@ describe("Donna inbox (English)", () => {
     expect(screen.getByTestId("donna-banner")).toHaveTextContent("Unresolved client questions: 3");
   });
 
+  it("Gamma (due 13:00Z) needs three +1 hour clicks from the 10:00Z demo start", async () => {
+    const user = userEvent.setup();
+    renderDonna();
+    const plusHour = screen.getByRole("button", { name: "+1 hour" });
+    await user.click(plusHour);
+    expect(screen.queryByTestId("donna-question-call-gamma")).not.toBeInTheDocument();
+    await user.click(plusHour);
+    expect(screen.queryByTestId("donna-question-call-gamma")).not.toBeInTheDocument();
+    await user.click(plusHour);
+    expect(screen.getByTestId("donna-question-call-gamma")).toBeInTheDocument();
+  });
+
+  it("labels the fixed UTC+2 as a demo offset and names Africa/Cairo for production", () => {
+    renderDonna();
+    expect(screen.getByTestId("donna-clock")).toHaveTextContent("Demo offset: fixed UTC+2, no daylight saving. Production quiet hours must use Africa/Cairo.");
+  });
+
   it("snooze keeps the question open and shows the snoozed reminder", async () => {
     const user = userEvent.setup();
     renderDonna();

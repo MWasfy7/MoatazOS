@@ -36,7 +36,7 @@ export const en = {
     clock: {
       title: "Demo clock",
       now: "Demo time now",
-      offsetNote: "Shown at a fixed UTC+2 offset.",
+      offsetNote: "Demo offset: fixed UTC+2, no daylight saving. Production quiet hours must use Africa/Cairo.",
       plusHour: "+1 hour",
       plusTenHours: "+10 hours",
       plusDay: "+1 day",

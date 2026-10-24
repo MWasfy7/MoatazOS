@@ -85,7 +85,11 @@ export interface DonnaState {
 }
 
 export interface ReminderPolicy {
-  /** Fixed offset used for quiet hours and display (demo: UTC+2, no DST). */
+  /**
+   * DEMO ONLY: a fixed offset (UTC+2, no daylight saving) used for quiet
+   * hours and display. Production quiet hours must use the Africa/Cairo
+   * time zone with daylight-saving handling.
+   */
   readonly utcOffsetMinutes: number;
   /** Local hour [0-23] quiet hours begin (inclusive). */
   readonly quietStartHour: number;

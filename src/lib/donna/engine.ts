@@ -113,10 +113,13 @@ export function buildInbox(state: DonnaState, now: string): DonnaInbox {
 
 function toQuestion(call: PlannedCall, events: readonly StoredEvent[], now: string, policy: ReminderPolicy): OutcomeQuestion {
   const own = events.filter((e) => e.callId === call.id);
-  let snoozedUntil: string | null = null;
+  // The latest snooze supersedes every earlier one, even a longer one:
+  // choose by sequence first, and only then ask whether it is still active.
+  let latestSnoozeUntil: string | null = null;
   for (const e of own) {
-    if (e.type === "SNOOZED" && parseInstant(e.until) > parseInstant(now)) snoozedUntil = e.until;
+    if (e.type === "SNOOZED") latestSnoozeUntil = e.until;
   }
+  const snoozedUntil = latestSnoozeUntil !== null && parseInstant(latestSnoozeUntil) > parseInstant(now) ? latestSnoozeUntil : null;
   let reminder: ReminderStatus = "DUE_NOW";
   if (snoozedUntil) reminder = "SNOOZED";
   else if (isInQuietHours(now, policy)) reminder = "HELD_QUIET_HOURS";

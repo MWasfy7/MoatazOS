@@ -3,8 +3,8 @@ import { addMinutes } from "./time";
 import type { DonnaClient, DonnaState, PlannedCall, ReminderPolicy } from "./types";
 
 /**
- * Deterministic demo clock: Monday 2026-10-26 12:00 at the fixed UTC+2
- * demo offset. Synthetic data only; no real person, number, or email.
+ * Deterministic demo clock: Monday 2026-10-26 10:00Z (12:00 at the fixed
+ * UTC+2 DEMO offset; production must use Africa/Cairo with DST handling). Synthetic data only; no real person, number, or email.
  */
 export const DEMO_NOW = "2026-10-26T10:00:00.000Z";
 
@@ -27,7 +27,7 @@ export const DEMO_CALLS: readonly PlannedCall[] = [
   { id: "call-alpha", clientId: "cl-alpha", dueAt: "2026-10-25T13:00:00.000Z" },
   // Due this morning; operator marked the task done but gave no outcome.
   { id: "call-beta", clientId: "cl-beta", dueAt: "2026-10-26T07:00:00.000Z" },
-  // Not due yet: becomes a question only when the demo clock passes 13:00Z.
+  // Not yet due: due 13:00Z, three hours after DEMO_NOW (three +1 hour clicks).
   { id: "call-gamma", clientId: "cl-gamma", dueAt: "2026-10-26T13:00:00.000Z" },
   // Already resolved earlier (shows a recorded outcome with an internal follow-up).
   { id: "call-delta", clientId: "cl-delta", dueAt: "2026-10-24T09:00:00.000Z" },

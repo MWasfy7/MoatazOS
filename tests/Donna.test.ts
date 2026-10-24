@@ -35,7 +35,8 @@ describe("Donna outcome questions", () => {
     expect(buildInbox(state, "2026-10-26T06:59:59.000Z").unresolved).toHaveLength(0);
     expect(buildInbox(state, "2026-10-26T06:59:59.000Z").upcoming).toHaveLength(1);
     expect(buildInbox(state, DUE).unresolved).toHaveLength(1);
-    // Re-evaluating (a restart or repeat delivery) cannot duplicate it.
+    // Re-evaluating the same in-memory state proves deterministic derivation
+    // only. It is NOT restart persistence: a reload resets the demo.
     const later = buildInbox(state, addMinutes(DUE, 600));
     expect(later.unresolved.map((q) => q.id)).toEqual(["q-c1"]);
   });
@@ -70,6 +71,18 @@ describe("Donna outcome questions", () => {
     const expired = buildInbox(state, addMinutes(AFTER, 61));
     expect(expired.unresolved[0]).toMatchObject({ reminder: "DUE_NOW", snoozedUntil: null });
     expect(expired.resolved).toHaveLength(0);
+  });
+
+  it("a newer, shorter snooze supersedes an older, longer one (regression)", () => {
+    const tomorrow = nextLocalMorning(AFTER, DEMO_POLICY, 9); // 09:00 local next day
+    const shortUntil = addMinutes(AFTER, 60);
+    let state = apply(single(), { type: "SNOOZED", callId: "c1", at: AFTER, until: tomorrow }, AFTER);
+    state = apply(state, { type: "SNOOZED", callId: "c1", at: AFTER, until: shortUntil }, AFTER);
+    expect(buildInbox(state, addMinutes(AFTER, 30)).unresolved[0]).toMatchObject({ reminder: "SNOOZED", snoozedUntil: shortUntil });
+    // Just after the short snooze: due again, not revived to tomorrow.
+    expect(buildInbox(state, addMinutes(AFTER, 61)).unresolved[0]).toMatchObject({ reminder: "DUE_NOW", snoozedUntil: null });
+    // Quiet hours still apply once the snooze has expired.
+    expect(buildInbox(state, "2026-10-26T21:00:00.000Z").unresolved[0]).toMatchObject({ reminder: "HELD_QUIET_HOURS", snoozedUntil: null });
   });
 
   it("holds reminders during quiet hours but still lists the question", () => {
@@ -207,6 +220,10 @@ describe("Donna immutability, determinism and demo data", () => {
     expect(inbox.unresolved.find((q) => q.callId === "call-beta")?.taskMarkedDone).toBe(true);
     expect(inbox.upcoming.map((c) => c.id)).toEqual(["call-gamma", "call-epsilon"]);
     expect(inbox.resolved.map((r) => r.call.id)).toEqual(["call-delta"]);
+    // One +1 hour click (11:00Z) does not make Gamma (due 13:00Z) a question; three do.
+    expect(buildInbox(createDemoState(), addMinutes(DEMO_NOW, 60)).unresolved.map((q) => q.callId)).toEqual(["call-alpha", "call-beta"]);
+    expect(buildInbox(createDemoState(), addMinutes(DEMO_NOW, 120)).unresolved).toHaveLength(2);
+    expect(buildInbox(createDemoState(), addMinutes(DEMO_NOW, 180)).unresolved.map((q) => q.callId)).toContain("call-gamma");
     // Advancing the clock past a due time raises exactly one new question.
     const later = buildInbox(createDemoState(), addMinutes(DEMO_NOW, 180));
     expect(later.unresolved.map((q) => q.callId)).toEqual(["call-alpha", "call-beta", "call-gamma"]);

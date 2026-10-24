@@ -38,7 +38,7 @@ export const ar: Dictionary = {
     clock: {
       title: "ساعة العرض",
       now: "وقت العرض الآن",
-      offsetNote: "يُعرض بتوقيت ثابت UTC+2.",
+      offsetNote: "إزاحة العرض التجريبي: UTC+2 ثابتة دون توقيت صيفي. يجب أن تستخدم ساعات الهدوء في الإنتاج توقيت Africa/Cairo.",
       plusHour: "+ ساعة",
       plusTenHours: "+ 10 ساعات",
       plusDay: "+ يوم",

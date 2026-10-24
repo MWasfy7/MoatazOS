@@ -243,6 +243,30 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   green CI, and a GitHub-confirmed merge; full gate green.
 - **Done:** merged on owner direction.
 
+### DON-01 Donna client-outcome recovery, synthetic slice — `IN_REVIEW`
+- **Merge:** `owner` (touches `src/`, adds a user-facing surface; never agent-eligible)
+- **Authorization:** owner-directed in a live session on 2026-10-24 from the
+  Notion brief "Donna v0.1 — Voice and Proactive Client Outcome Recovery".
+  Covers implementation, tests, branch and draft PR only. No merge, deploy,
+  paid service, live CRM write or client contact.
+- **Goal / value:** a planned client call that passes its due time without
+  feedback raises exactly one unresolved question ("Did you speak with this
+  client?"); ignoring it never completes it.
+- **Scope:** `src/lib/donna/` (pure, deep-frozen, explicit clocks),
+  `src/components/donna/`, route `/app-studio/donna`, an app-open banner and
+  sidebar entry (compile-time flag `DONNA_ENABLED`), EN/AR copy, tests. Built
+  on `main`, independent of ECHO branches, PR #12 and PR #25 (not touched).
+- **Not implemented (subsequent work, labelled in the UI):** durable storage,
+  voice capture and spoken replies, cross-device sync, closed-app
+  notifications and any server scheduler, opt-out handling, client-identity
+  clarification, batching, and the SalesOS/ECHO connection.
+- **Acceptance:** options Spoke / No answer / Didn't call / Snooze / Cancel;
+  snooze, dismiss and "task done" leave the question open; internal
+  follow-up date and client-confirmed appointment are distinct types, and an
+  appointment needs explicit client confirmation and a conversation; EN and
+  AR/RTL; no execution control; `SafetyBoundary` unchanged and passing.
+- **Done:** draft PR to `main`, run record in `docs/engineering/runs/`.
+
 ## 3. Blocked
 
 ### ECH-02 Make the NLF-50 harness hermetic (rework #11) — `BLOCKED` on OD-3, ECH-01
@@ -295,3 +319,7 @@ in compact form. Before approval, refine it to the SOS-01 level of detail.
 | ECH-10 | ECHO | Durable session memory for in-app ECHO | Memory-only → explicit export/import, then a persistence ADR | ECH-03 | Restart-safe without browser storage until approved | Invariant 8 (persistence) |
 | ECH-11 | ECHO | Routing reliability: NLF-50 pass rate tracked per build | Uses ECH-02 scorecard | ECH-02 | Trend table in the PR | Teaching to the test |
 | ECH-12 | ECHO | Tool orchestration design (ADR only) | Permission model, proposal → approval → execution separation | ECH-03, MOS-10 | Owner-approved ADR | External side effects |
+| DON-02 | Donna | Durable, authenticated records shared across phone and laptop | Backend records behind a narrow feature boundary; ADR first (needs MOS-10) | DON-01, MOS-10 | Restart keeps unresolved questions; two devices see one record; repeat delivery cannot duplicate | Persistence, auth and real client data are always-owner; keep real data out of this public repo |
+| DON-03 | Donna | Voice capture with reviewable transcript | Tap to speak, review, confirm; EN, Egyptian Arabic and Franco tests; text fallback | DON-02 | Transcript and extracted facts reviewable; unclear client identity not guessed; real-device check | Provider and recurring cost named before paid use |
+| DON-04 | Donna | Closed-app reminders | Server scheduler and supported notification delivery; quiet hours and batching | DON-02 | Distinguish scheduled, provider-accepted, device-received, acknowledged; verified on the owner's actual iPhone | Outbound delivery; mock delivery must be labelled mocked |
+| DON-05 | Donna | Connect the prepared SalesOS action card | Opt-out blocks outreach but not record keeping; nothing is sent automatically | DON-01, SOS-10 | Restraint wins; tests in EN/AR | Invariants 1 and 2 |

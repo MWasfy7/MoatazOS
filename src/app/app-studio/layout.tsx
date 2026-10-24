@@ -5,11 +5,14 @@ import { useLocale } from "@/lib/i18n/LocaleProvider";
 import { Sidebar } from "@/components/app-studio/Sidebar";
 import { LocaleSwitch } from "@/components/app-studio/LocaleSwitch";
 import { DemoModeBadge } from "@/components/shared/DemoModeBadge";
+import { DonnaProvider } from "@/components/donna/DonnaProvider";
+import { DonnaBanner } from "@/components/donna/DonnaBanner";
 
 export default function AppStudioLayout({ children }: { children: ReactNode }) {
   const { dict } = useLocale();
 
   return (
+    <DonnaProvider>
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="border-b border-neutral-900 md:w-60 md:shrink-0 md:border-b-0 md:border-e">
         <div className="flex items-center justify-between px-4 py-4">
@@ -25,8 +28,10 @@ export default function AppStudioLayout({ children }: { children: ReactNode }) {
           <DemoModeBadge />
           <LocaleSwitch />
         </header>
+        <DonnaBanner />
         <main className="flex-1 p-4">{children}</main>
       </div>
     </div>
+    </DonnaProvider>
   );
 }

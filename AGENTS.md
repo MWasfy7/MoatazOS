@@ -21,7 +21,10 @@ Arabic/RTL), running on deterministic synthetic fixtures.
 `docs/engineering/BACKLOG.md` for the current state of every branch and PR.
 
 There is no backend, no database, no authentication, no network call and
-no deployment from `main`.
+no deployment from `main`. The one narrow exception is Donna's optional
+durable store (DON-02): a SQL migration plus a client adapter for a
+separate, owner-provisioned hosted database. It is **off by default**,
+synthetic-data-only, and confined to two files (invariant 8).
 
 ## Commands
 
@@ -35,6 +38,8 @@ Run from the repository root. Node 20+ (CI uses 20; cloud sessions use 22).
 | Unit/component tests (includes the safety boundary test) | `npm test` |
 | Production build | `npm run build` |
 | Browser tests (desktop Chromium + mobile Arabic) | `npm run test:e2e` |
+| Donna database rules on a throwaway local Postgres (not Supabase) | `npm run test:donna-db` |
+| Donna live acceptance against a real hosted project (needs owner-supplied env; fails loudly without it) | `npm run test:donna-live` |
 
 The full local gate, in order, is:
 
@@ -74,11 +79,24 @@ guards one of them is a change to the guarantee itself.
 7. **Synthetic data only.** No real customer names, phone numbers, emails,
    WhatsApp exports, or CRM rows in the repository, fixtures, tests,
    screenshots, logs, or PR text. This repository is **public**. Imported
-   data in the UI is masked (`maskPii`) and memory-only.
+   data in the UI is masked (`maskPii`) and memory-only. Donna's optional
+   hosted store (DON-02) accepts **synthetic records only**: real client
+   data stays prohibited until the trial-readiness gate (G6) is passed and
+   the owner signs off. The database rejects non-pseudonymous client ids.
 8. **No side-effect capability in `src/`.** No network, browser
    persistence, process spawning, server actions, route handlers,
    middleware, or outbound-contact links. Runtime dependencies are limited
    to `next`, `react`, `react-dom`. Enforced by `tests/SafetyBoundary.test.ts`.
+   **Exception (DON-02, owner-approved 2026-10-24), exactly two files:**
+   `src/lib/donna/remote/config.ts` may read the three `NEXT_PUBLIC_DONNA_*`
+   environment names, and `src/lib/donna/remote/supabaseStore.ts` may import
+   the exact-pinned `@supabase/supabase-js` (its SDK keeps only its own auth
+   session in browser storage). Domain data is never cached in the browser,
+   sync is off unless switched on and safely configured, a save is shown only
+   after the database acknowledges it, and no other file may touch the
+   environment or the SDK. The approved runtime dependencies become `next`,
+   `react`, `react-dom`, `@supabase/supabase-js`. `tests/SafetyBoundary.test.ts`
+   asserts the exception does not grow.
 9. **ECHO is proposal-only.** Every ECHO action proposal carries
    `externalSideEffect: false`; send/delete/contact requests are clarified
    or declined, never executed; negative and cancellation instructions are

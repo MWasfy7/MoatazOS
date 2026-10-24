@@ -11,9 +11,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:donna-db": "bash scripts/donna-db-test.sh",
+    "test:donna-live": "playwright test -c playwright.donna-live.config.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.109.0",
     "next": "14.2.35",
     "react": "18.3.1",
     "react-dom": "18.3.1"

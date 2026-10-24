@@ -55,3 +55,17 @@ export function createDemoState(): DonnaState {
   }
   return state;
 }
+
+/**
+ * Synthetic planned calls relative to a real clock, for sync mode (the
+ * database rejects events dated in the future, so the demo clock cannot be used).
+ * Ids are fixed so repeating the seed is idempotent.
+ */
+export function buildSyntheticCalls(nowIso: string): readonly PlannedCall[] {
+  return [
+    { id: "syn-alpha", clientId: "cl-alpha", dueAt: addMinutes(nowIso, -26 * 60) },
+    { id: "syn-beta", clientId: "cl-beta", dueAt: addMinutes(nowIso, -3 * 60) },
+    { id: "syn-gamma", clientId: "cl-gamma", dueAt: addMinutes(nowIso, 3 * 60) },
+    { id: "syn-delta", clientId: "cl-delta", dueAt: addMinutes(nowIso, 27 * 60) },
+  ];
+}

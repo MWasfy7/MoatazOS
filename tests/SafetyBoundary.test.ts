@@ -44,7 +44,29 @@ const FORBIDDEN_FILE_PATTERNS: ReadonlyArray<[string, RegExp]> = [
 ];
 
 /** Runtime dependencies ship to users; adding one needs owner approval. */
-const APPROVED_RUNTIME_DEPENDENCIES = ["next", "react", "react-dom"];
+const APPROVED_RUNTIME_DEPENDENCIES = ["@supabase/supabase-js", "next", "react", "react-dom"];
+
+/**
+ * DON-02 (owner-approved 2026-10-24, AGENTS.md invariant 8 amendment): the Donna
+ * durable-store adapter is the ONLY code allowed to touch the environment and the
+ * Supabase SDK. The exception is per file, per capability, and asserted not to grow:
+ *  - config.ts may read exactly three NEXT_PUBLIC_DONNA_* names from process.env;
+ *  - supabaseStore.ts may import the SDK (which keeps its own auth session) and
+ *    nothing else here; it still may not call fetch, use browser storage, or read env.
+ * Real client data stays prohibited; the adapter is for synthetic data until the
+ * trial-readiness gate.
+ */
+const DONNA_ADAPTER_FILES = [
+  "src/lib/donna/remote/config.ts",
+  "src/lib/donna/remote/supabaseStore.ts",
+] as const;
+const DONNA_SDK_FILE = "src/lib/donna/remote/supabaseStore.ts";
+const DONNA_ENV_FILE = "src/lib/donna/remote/config.ts";
+const DONNA_ENV_NAMES = [
+  "NEXT_PUBLIC_DONNA_SYNC",
+  "NEXT_PUBLIC_DONNA_SUPABASE_URL",
+  "NEXT_PUBLIC_DONNA_SUPABASE_ANON_KEY",
+];
 
 function sourceFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -61,7 +83,12 @@ function findSourceViolations(relativePath: string, content: string): string[] {
   }
   content.split("\n").forEach((line, index) => {
     for (const [label, pattern] of FORBIDDEN_SOURCE_PATTERNS) {
-      if (pattern.test(line)) violations.push(`${relativePath}:${index + 1}: ${label}`);
+      if (!pattern.test(line)) continue;
+      if (label === "server: environment access" && relativePath === DONNA_ENV_FILE) {
+        const refs = line.match(/process\.env(\.\w+)?/g) ?? [];
+        if (refs.every((ref) => DONNA_ENV_NAMES.some((name) => ref === `process.env.${name}`))) continue;
+      }
+      violations.push(`${relativePath}:${index + 1}: ${label}`);
     }
   });
   return violations;
@@ -75,11 +102,29 @@ describe("repository safety boundary", () => {
     expect(violations).toEqual([]);
   });
 
-  it("ships only the approved runtime dependencies", () => {
+  it("ships only the approved runtime dependencies, with the Supabase SDK pinned exactly", () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
     };
     expect(Object.keys(pkg.dependencies ?? {}).sort()).toEqual([...APPROVED_RUNTIME_DEPENDENCIES].sort());
+    expect(pkg.dependencies?.["@supabase/supabase-js"]).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it("confines the environment and the Supabase SDK to the two Donna adapter files (the exception does not grow)", () => {
+    expect(DONNA_ADAPTER_FILES).toHaveLength(2);
+    const files = sourceFiles(SRC).map((f) => path.relative(ROOT, f).split(path.sep).join("/"));
+    for (const adapter of DONNA_ADAPTER_FILES) expect(files).toContain(adapter);
+    const envUsers: string[] = [];
+    const sdkUsers: string[] = [];
+    for (const rel of files) {
+      const content = fs.readFileSync(path.join(ROOT, rel), "utf8");
+      if (/process\.env/.test(content)) envUsers.push(rel);
+      if (/@supabase\//.test(content)) sdkUsers.push(rel);
+    }
+    expect(envUsers).toEqual([DONNA_ENV_FILE]);
+    expect(sdkUsers).toEqual([DONNA_SDK_FILE]);
+    const envNames = [...fs.readFileSync(path.join(ROOT, DONNA_ENV_FILE), "utf8").matchAll(/process\.env\.(\w+)/g)].map((m) => m[1]);
+    expect([...new Set(envNames)].sort()).toEqual([...DONNA_ENV_NAMES].sort());
   });
 
   it("detects each class of forbidden capability", () => {
@@ -95,5 +140,13 @@ describe("repository safety boundary", () => {
       expect(findSourceViolations(file, line).length, `${file}: ${line}`).toBeGreaterThan(0);
     }
     expect(findSourceViolations("src/lib/ok.ts", "const sent = false; // no network")).toEqual([]);
+    // The Donna env exception is exact: other names, other files, and other capabilities still fail.
+    expect(findSourceViolations(DONNA_ENV_FILE, "const a = process.env.NEXT_PUBLIC_DONNA_SYNC;")).toEqual([]);
+    expect(findSourceViolations(DONNA_ENV_FILE, "const a = process.env.SUPABASE_SERVICE_ROLE_KEY;").length).toBeGreaterThan(0);
+    expect(findSourceViolations(DONNA_ENV_FILE, "const a = process.env;").length).toBeGreaterThan(0);
+    expect(findSourceViolations("src/lib/donna/other.ts", "const a = process.env.NEXT_PUBLIC_DONNA_SYNC;").length).toBeGreaterThan(0);
+    expect(findSourceViolations(DONNA_SDK_FILE, "const a = process.env.NEXT_PUBLIC_DONNA_SYNC;").length).toBeGreaterThan(0);
+    expect(findSourceViolations(DONNA_SDK_FILE, "await fetch('/x')").length).toBeGreaterThan(0);
+    expect(findSourceViolations(DONNA_SDK_FILE, "window.localStorage.setItem('k', 'v')").length).toBeGreaterThan(0);
   });
 });

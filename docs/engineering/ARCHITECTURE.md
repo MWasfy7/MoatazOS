@@ -123,7 +123,7 @@ tested, by unattended cloud sessions.
 Which lineage is canonical for the product is an open owner decision
 (BACKLOG OD-3).
 
-## 4c. Donna (DON-01, branch `claude/donna-client-outcome-recovery-v4vwzb`)
+## 4c. Donna (DON-01 on `main`; DON-02 on `claude/don-02-durable-records`)
 
 `src/lib/donna/` derives one outcome question per planned call from the call,
 an append-only event log and an explicit clock (`buildInbox`, `applyEvent`;
@@ -131,8 +131,23 @@ an append-only event log and an explicit clock (`buildInbox`, `applyEvent`;
 question; an outcome (`SPOKE`, `NO_ANSWER`, `DID_NOT_CALL`, `CANCELLED`) does.
 An internal follow-up date and a client-confirmed appointment are separate
 types. UI: `src/components/donna/`, route `/app-studio/donna`, and an app-open
-banner in the App Studio layout. Synthetic and memory-only; persistence, voice,
-sync and closed-app notifications are not built. Independent of the ECHO runtime.
+banner in the App Studio layout. Independent of the ECHO runtime.
+
+**Default (sync OFF): memory-only demo; a reload resets it.** DON-02 adds an
+optional durable store behind `NEXT_PUBLIC_DONNA_SYNC=on`, synthetic data only:
+
+```
+DonnaProvider ──(sync ON)──▶ DonnaStore contract ──▶ remote/supabaseStore.ts ──▶ hosted Postgres
+   │                          (load, appendEvent,        (only SDK importer)        donna_calls, donna_events
+   │                           upsertCall)                                          RPC donna_record_event
+   └─(sync OFF)─▶ in-memory demo                                                    RLS, triggers, allowlist
+```
+
+`remote/config.ts` is the only environment reader. The database enforces
+validity, ownership, append-only history, one outcome per call and retry
+idempotency (`supabase/migrations/…`); the browser pre-checks with the same
+engine. A save is shown only after the database acknowledges it and the records
+are re-read. `memoryStore.ts` is a **mock** used in tests only.
 
 ## 5. Boundaries and integration contracts
 
@@ -143,7 +158,7 @@ sync and closed-app notifications are not built. Independent of the ECHO runtime
 | Fixture snapshot → UI | `DecisionSnapshot` + `checkSnapshotIntegrity` | `tests/Integrity.test.ts` |
 | Engine → Operator Runtime | `OperatorOpportunity`, `EvidenceContract` (PR #8) | `tests/OperatorRuntime.test.ts` |
 | ECHO → anything | `EchoResult.proposedActions[*].externalSideEffect: false` | `tests/EchoRuntime.test.ts` (branch) |
-| App → outside world | none permitted | `tests/SafetyBoundary.test.ts` |
+| App → outside world | none permitted, except the two Donna adapter files (sync off by default) | `tests/SafetyBoundary.test.ts` |
 
 Not yet built anywhere: authentication, multi-tenant data separation,
 persistence, real integrations (CRM, WhatsApp, calendar), and any

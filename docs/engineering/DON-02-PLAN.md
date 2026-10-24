@@ -1,8 +1,13 @@
 # DON-02 plan: durable, authenticated Donna records across phone and laptop
 
-Status: **PROPOSED. No code, no provisioning, no deployment.** Needs owner
-approval of DON-02, MOS-10 (auth ADR), and the capability changes in §4.
-Written 2026-10-24 against `main@672f054` (DON-01 merged).
+Status: **APPROVED by the owner on 2026-10-24 (synthetic data only), with
+corrections; implemented on `claude/don-02-durable-records` (draft PR).** The
+exact setup is in `DON-02-SETUP.md`; the auth decision is `adr/0001-auth.md`.
+Corrections the owner required, all implemented: validity enforced in the
+database; ownership, append-only, one outcome per call and retry idempotency
+enforced there, with a retry distinguished from a conflict; allowlist enforced
+server-side; one exact login flow (email and password); sync off by default and a
+save shown only after the database acknowledges it. Written against `main@672f054`.
 
 ## 1. What exists today (verified)
 

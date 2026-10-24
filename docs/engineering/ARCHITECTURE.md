@@ -123,6 +123,17 @@ tested, by unattended cloud sessions.
 Which lineage is canonical for the product is an open owner decision
 (BACKLOG OD-3).
 
+## 4c. Donna (DON-01, branch `claude/donna-client-outcome-recovery-v4vwzb`)
+
+`src/lib/donna/` derives one outcome question per planned call from the call,
+an append-only event log and an explicit clock (`buildInbox`, `applyEvent`;
+`DONNA_LOGIC_VERSION`). Snooze, dismissal and "task done" never resolve a
+question; an outcome (`SPOKE`, `NO_ANSWER`, `DID_NOT_CALL`, `CANCELLED`) does.
+An internal follow-up date and a client-confirmed appointment are separate
+types. UI: `src/components/donna/`, route `/app-studio/donna`, and an app-open
+banner in the App Studio layout. Synthetic and memory-only; persistence, voice,
+sync and closed-app notifications are not built. Independent of the ECHO runtime.
+
 ## 5. Boundaries and integration contracts
 
 | Boundary | Contract | Enforced by |

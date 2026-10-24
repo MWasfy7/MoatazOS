@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { DONNA_ENABLED } from "@/lib/donna";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
+import { useDonna } from "@/components/donna/DonnaProvider";
 
 interface ModuleEntry {
-  key: "salesos" | "performanceos" | "revenueos" | "analyticsos" | "jarvis";
+  key: "salesos" | "donna" | "performanceos" | "revenueos" | "analyticsos" | "jarvis";
   href: string;
   implemented: boolean;
 }
 
 const MODULES: ModuleEntry[] = [
   { key: "salesos", href: "/app-studio/salesos", implemented: true },
+  ...(DONNA_ENABLED ? [{ key: "donna" as const, href: "/app-studio/donna", implemented: true }] : []),
   { key: "performanceos", href: "#", implemented: false },
   { key: "revenueos", href: "#", implemented: false },
   { key: "analyticsos", href: "#", implemented: false },
@@ -26,6 +29,7 @@ const MODULES: ModuleEntry[] = [
 export function Sidebar() {
   const { dict } = useLocale();
   const pathname = usePathname();
+  const { inbox } = useDonna();
 
   return (
     <nav aria-label={dict.appStudio.title} className="flex flex-col gap-1 p-3">
@@ -54,7 +58,15 @@ export function Sidebar() {
             }`}
             aria-current={active ? "page" : undefined}
           >
-            {dict.appStudio.modules[mod.key]}
+            <span>{dict.appStudio.modules[mod.key]}</span>
+            {mod.key === "donna" && inbox.unresolved.length > 0 ? (
+              <span
+                className="ms-2 rounded-full bg-amber-700 px-2 py-0.5 text-xs font-semibold text-white"
+                data-testid="donna-nav-count"
+              >
+                {inbox.unresolved.length}
+              </span>
+            ) : null}
           </Link>
         );
       })}

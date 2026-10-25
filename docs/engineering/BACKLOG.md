@@ -243,7 +243,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   green CI, and a GitHub-confirmed merge; full gate green.
 - **Done:** merged on owner direction.
 
-### DON-01 Donna client-outcome recovery, synthetic slice — `IN_REVIEW`
+### DON-01 Donna client-outcome recovery, synthetic slice — `DONE`
 - **Merge:** `owner` (touches `src/`, adds a user-facing surface; never agent-eligible)
 - **Authorization:** owner-directed in a live session on 2026-10-24 from the
   Notion brief "Donna v0.1 — Voice and Proactive Client Outcome Recovery".
@@ -269,7 +269,39 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   follow-up date and client-confirmed appointment are distinct types, and an
   appointment needs explicit client confirmation and a conversation; EN and
   AR/RTL; no execution control; `SafetyBoundary` unchanged and passing.
-- **Done:** draft PR to `main`, run record in `docs/engineering/runs/`.
+- **Done:** merged as PR #27 (merge commit `672f054`, owner-directed, head `b4dc39d`); run record in `docs/engineering/runs/`.
+
+### DON-02 Durable, authenticated Donna records (synthetic data only) — `IN_REVIEW`
+- **Merge:** `owner` (touches `src/`, `AGENTS.md`, `SafetyBoundary`, a dependency, a hosted database)
+- **Authorization:** owner-directed on 2026-10-24: DON-02 with synthetic data only; single-owner
+  Supabase auth, public sign-up disabled, per-user row security; narrow amendments to AGENTS.md and
+  `SafetyBoundary`; one exact-pinned `@supabase/supabase-js`; migration SQL, provider integration,
+  contract tests, and a separate real-database acceptance harness; a draft PR. **No** merge,
+  deployment, provisioning, paid plan, or real client data. Repository visibility unchanged (OD-2 open).
+- **Plan / setup / auth decision:** `docs/engineering/DON-02-PLAN.md`, `DON-02-SETUP.md`, `adr/0001-auth.md`
+  (the ADR covers MOS-10 for this scope only).
+- **Scope:** `supabase/migrations/20261025000000_donna_durable_records.sql`; `src/lib/donna/{store,memoryStore}.ts`,
+  `src/lib/donna/remote/{config,supabaseStore}.ts`; provider and sync panel; EN/AR copy; tests;
+  `npm run test:donna-db` and `npm run test:donna-live`.
+- **Acceptance (all required before the owner treats DON-02 as done):**
+  1. Database rules proven on a throwaway local Postgres: invalid types/payloads, future events, bad call
+     references, appointment/outcome inconsistencies, ownership, append-only, one outcome per call,
+     retry vs conflict, parallel races, allowlist, isolation (`npm run test:donna-db`). **Done locally.**
+  2. Browser rules and provider behaviour proven with a mock store (labelled MOCK). **Done locally.**
+  3. **Live, against a real hosted project (blocked on owner setup):** save an outcome, reload, a second
+     authenticated browser context shows the same record; retry and conflicting writes create no
+     duplicate outcome; a different account cannot access the records; sign-up is refused;
+     then repeat by hand on the owner's phone and laptop.
+  4. **Hosted allowlist proof (blocked on owner setup):** `supabase/tests/hosted_probe.sql` reports `OVERALL PASS`
+     in the synthetic project (fires the trigger directly), and optionally `npm run test:donna-live-trigger`, which
+     records API observations (allow-listed control succeeds, unlisted refused, no account; read over raw HTTP) and
+     cannot pass alone; `npm run test:donna-verify-trigger` then needs a Postgres log line naming
+     `DONNA_SIGNUP_NOT_ALLOWED` inside the attempt window. A generic 500, rate limits, network errors and unrelated
+     failures are INCONCLUSIVE and fail.
+  5. Retry safety (repair of review `88c1a07`): a retry re-sends the frozen request (id, `at`, `until`); an
+     acknowledged write whose reload fails is reported as "stored, not yet shown" with recovery; loads are
+     discarded across sign-out, account change and unmount. **Done locally (mock).**
+- **Not done:** hosted verification, deployment, Africa/Cairo quiet hours (DON-04), offline queue, voice, real data.
 
 ## 3. Blocked
 
@@ -315,7 +347,7 @@ in compact form. Before approval, refine it to the SOS-01 level of detail.
 | ENG-04 | Platform | Remove the Chromium mismatch and the Playwright advisory | `@playwright/test` → current 1.x; drop the executable override if it becomes unnecessary | ENG-01 | e2e green in CI (WebKit) and cloud | CI browser download size and time |
 | MOS-01 | MoatazOS | Versioned shared data contracts between modules | `docs/engineering/CONTRACTS.md` plus contract tests for `NormalizedSalesEvent`, `DecisionSequence`, `EvidenceContract`, `EchoResult` | OD-3 | Contract tests fail on any breaking field change | Over-specifying early |
 | MOS-02 | SalesOS | Command Center cards produced by the Decision Engine, not hand-authored fixtures | Adapter from `DeterministicDecisionSnapshot` to the `DecisionSnapshot` view model | SOS-02 | Every existing fixture state reproducible; integrity tests pass | Two models drift; integrity semantics |
-| MOS-10 | MoatazOS | Authentication and tenant boundary design (ADR only) | `docs/engineering/adr/0001-auth.md` | OD-2 | Owner-approved ADR | Must not add a backend without approval |
+| MOS-10 | MoatazOS | Authentication and tenant boundary design (ADR only). Donna-only scope approved: `adr/0001-auth.md` (general design still open) | `docs/engineering/adr/0001-auth.md` | OD-2 | Owner-approved ADR | Must not add a backend without approval |
 | MOS-11 | MoatazOS | Agent coordination: a nightly status digest the owner can read in 2 minutes | Routine writes a summary issue comment | routine live | Digest lists runs, PRs, blockers | Outward-facing noise |
 | SOS-10 | SalesOS | Follow-up recommendations: suggested channel and timing class for `NEXT_STEP_READY`, never message sending | `src/lib/operatorRuntime` recommendation class plus UI | SOS-02 | Restraint wins over any recommendation; tests in EN/AR | Must not become drafted outreach without approval |
 | SOS-11 | SalesOS | KPI learning: analyze disagreement and outcome ledgers into doctrine *candidates* (never auto-applied) | Pure analysis functions over ledgers | SOS-02 | Candidates cite ledger evidence; doctrine unchanged without an operator | Causal over-claiming |
@@ -323,7 +355,6 @@ in compact form. Before approval, refine it to the SOS-01 level of detail.
 | ECH-10 | ECHO | Durable session memory for in-app ECHO | Memory-only → explicit export/import, then a persistence ADR | ECH-03 | Restart-safe without browser storage until approved | Invariant 8 (persistence) |
 | ECH-11 | ECHO | Routing reliability: NLF-50 pass rate tracked per build | Uses ECH-02 scorecard | ECH-02 | Trend table in the PR | Teaching to the test |
 | ECH-12 | ECHO | Tool orchestration design (ADR only) | Permission model, proposal → approval → execution separation | ECH-03, MOS-10 | Owner-approved ADR | External side effects |
-| DON-02 | Donna | Durable, authenticated records shared across phone and laptop | Backend records behind a narrow feature boundary; ADR first (needs MOS-10) | DON-01, MOS-10 | Restart (not just in-memory re-evaluation) keeps unresolved questions; two devices see one record; repeat delivery cannot duplicate | Persistence, auth and real client data are always-owner; keep real data out of this public repo |
 | DON-03 | Donna | Voice capture with reviewable transcript | Tap to speak, review, confirm; EN, Egyptian Arabic and Franco tests; text fallback | DON-02 | Transcript and extracted facts reviewable; unclear client identity not guessed; real-device check | Provider and recurring cost named before paid use |
 | DON-04 | Donna | Closed-app reminders | Server scheduler and supported notification delivery; quiet hours in the Africa/Cairo time zone with DST handling (DON-01 uses a fixed UTC+2 demo offset); batching | DON-02 | Distinguish scheduled, provider-accepted, device-received, acknowledged; verified on the owner's actual iPhone | Outbound delivery; mock delivery must be labelled mocked |
 | DON-05 | Donna | Connect the prepared SalesOS action card | Opt-out blocks outreach but not record keeping; nothing is sent automatically | DON-01, SOS-10 | Restraint wins; tests in EN/AR | Invariants 1 and 2 |

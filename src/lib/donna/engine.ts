@@ -8,6 +8,7 @@ import type {
   DonnaInbox,
   DonnaState,
   NextAction,
+  OutcomeKind,
   OutcomeQuestion,
   OutcomeRecord,
   PlannedCall,
@@ -62,15 +63,7 @@ export function applyEvent(state: DonnaState, input: DonnaEventInput, now: strin
       const checked = checkNextAction(input.outcome, input.nextAction, input.at, state.policy);
       if (typeof checked === "string") return fail(checked);
       const nextAction = checked;
-      const unknownFields: UnknownField[] = [];
-      if (input.originalInput.trim() === "") unknownFields.push("NOTE");
-      if (nextAction === null && input.outcome !== "CANCELLED") unknownFields.push("NEXT_ACTION");
-      const confirmedFacts: ConfirmedFact[] = [{ kind: "OUTCOME", outcome: input.outcome }];
-      if (nextAction?.kind === "INTERNAL_FOLLOW_UP") {
-        confirmedFacts.push({ kind: "INTERNAL_FOLLOW_UP_DATE", date: nextAction.date });
-      } else if (nextAction?.kind === "CLIENT_CONFIRMED_APPOINTMENT") {
-        confirmedFacts.push({ kind: "CLIENT_CONFIRMED_APPOINTMENT_AT", at: nextAction.at });
-      }
+      const { confirmedFacts, unknownFields } = deriveOutcomeFacts(input.outcome, input.originalInput, nextAction);
       stored = {
         type: "OUTCOME_RECORDED",
         callId: input.callId,
@@ -86,6 +79,38 @@ export function applyEvent(state: DonnaState, input: DonnaEventInput, now: strin
     }
   }
   return { ok: true, state: deepFreeze({ ...state, events: [...state.events, stored] }) };
+}
+
+/** Confirmed facts and unknown fields for an outcome. Single source for browser and database rows. */
+export function deriveOutcomeFacts(
+  outcome: OutcomeKind,
+  originalInput: string,
+  nextAction: NextAction | null,
+): { confirmedFacts: ConfirmedFact[]; unknownFields: UnknownField[] } {
+  const unknownFields: UnknownField[] = [];
+  if (originalInput.trim() === "") unknownFields.push("NOTE");
+  if (nextAction === null && outcome !== "CANCELLED") unknownFields.push("NEXT_ACTION");
+  const confirmedFacts: ConfirmedFact[] = [{ kind: "OUTCOME", outcome }];
+  if (nextAction?.kind === "INTERNAL_FOLLOW_UP") {
+    confirmedFacts.push({ kind: "INTERNAL_FOLLOW_UP_DATE", date: nextAction.date });
+  } else if (nextAction?.kind === "CLIENT_CONFIRMED_APPOINTMENT") {
+    confirmedFacts.push({ kind: "CLIENT_CONFIRMED_APPOINTMENT_AT", at: nextAction.at });
+  }
+  return { confirmedFacts, unknownFields };
+}
+
+/**
+ * Rebuild state from rows a store returned (database order = `seq`). The
+ * result is derived only from acknowledged records; nothing is assumed.
+ */
+export function rebuildState(
+  policy: ReminderPolicy,
+  clients: readonly DonnaClient[],
+  calls: readonly PlannedCall[],
+  events: readonly StoredEvent[],
+): DonnaState {
+  const ordered = [...events].sort((a, b) => a.seq - b.seq);
+  return deepFreeze({ policy, clients, calls: [...calls], events: ordered });
 }
 
 /** The inbox as of `now`. Deterministic; events later than `now` are ignored. */

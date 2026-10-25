@@ -11,11 +11,27 @@ import { useDonna } from "./DonnaProvider";
  */
 export function DonnaBanner() {
   const { dict } = useLocale();
-  const { inbox, bannerHidden, dismissBanner } = useDonna();
+  const { inbox, bannerHidden, dismissBanner, sync } = useDonna();
   const copy = dict.donna;
   const count = inbox.unresolved.length;
 
-  if (!DONNA_ENABLED || count === 0) return null;
+  if (!DONNA_ENABLED) return null;
+
+  // Sync on and signed out: nothing can be shown until sign-in, so say so on app open.
+  if (sync.mode === "ON" && sync.phase === "SIGNED_OUT") {
+    return (
+      <section role="region" aria-label={copy.banner.signInPrompt} className="border-b border-amber-800 bg-amber-950/40 px-4 py-3" data-testid="donna-banner-signin">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-amber-100" dir="auto">{copy.banner.signInPrompt}</p>
+          <Link href="/app-studio/donna" className="inline-flex min-h-11 items-center rounded-md bg-amber-700 px-4 text-sm font-medium text-white hover:bg-amber-600">
+            {copy.sync.signIn}
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  if (count === 0) return null;
 
   if (bannerHidden) {
     return (

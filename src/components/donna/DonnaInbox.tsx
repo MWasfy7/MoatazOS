@@ -1,27 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   addMinutes,
   formatLocal,
   localToInstant,
   nextLocalMorning,
   type ConfirmedFact,
-  type DonnaErrorCode,
   type NextActionInput,
   type OutcomeKind,
   type OutcomeQuestion,
   type OutcomeRecord,
+  type StoreErrorCode,
 } from "@/lib/donna";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import type { Dictionary } from "@/lib/i18n/en";
-import { useDonna } from "./DonnaProvider";
+import { DonnaSyncPanel } from "./DonnaSyncPanel";
+import { useDonna, type PreparedEvent } from "./DonnaProvider";
 
 type Copy = Dictionary["donna"];
 type Mode = "idle" | "snooze" | "cancel" | OutcomeKind;
 
 const BUTTON =
-  "min-h-11 rounded-md border border-neutral-700 px-4 text-sm font-medium text-neutral-100 hover:bg-neutral-800";
+  "min-h-11 rounded-md border border-neutral-700 px-4 text-sm font-medium text-neutral-100 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50";
 
 function Time({ iso, offset }: { iso: string; offset: number }) {
   return <bdi dir="ltr">{formatLocal(iso, offset)}</bdi>;
@@ -29,9 +30,11 @@ function Time({ iso, offset }: { iso: string; offset: number }) {
 
 export function DonnaInbox() {
   const { dict } = useLocale();
-  const { state, now, inbox, advanceClock, resetDemo, clientLabel } = useDonna();
+  const { state, now, inbox, advanceClock, resetDemo, clientLabel, sync } = useDonna();
   const copy = dict.donna;
   const offset = state.policy.utcOffsetMinutes;
+  const demoMode = sync.mode === "OFF";
+  const showLists = demoMode || (sync.mode === "ON" && sync.phase === "READY");
 
   return (
     <div className="mx-auto max-w-4xl space-y-6" data-testid="donna-inbox">
@@ -44,18 +47,27 @@ export function DonnaInbox() {
         </p>
       </header>
 
+      <DonnaSyncPanel />
+
       <section aria-label={copy.demoTitle} className="rounded-xl border border-neutral-800 p-4" data-testid="donna-demo-status">
         <h2 className="text-sm font-semibold text-neutral-200">{copy.demoTitle}</h2>
-        <p className="mt-1 text-sm text-neutral-400" dir="auto">{copy.demoBody}</p>
+        {demoMode ? <p className="mt-1 text-sm text-neutral-400" dir="auto">{copy.demoBody}</p> : null}
         <h3 className="mt-3 text-sm font-semibold text-amber-200">{copy.notImplementedTitle}</h3>
         <ul className="mt-1 list-disc space-y-1 ps-5 text-sm text-neutral-400" dir="auto">
-          <li>{copy.notImplemented.persistence}</li>
           <li>{copy.notImplemented.voice}</li>
-          <li>{copy.notImplemented.sync}</li>
           <li>{copy.notImplemented.notifications}</li>
+          <li>{copy.notImplemented.offline}</li>
+          <li>{copy.notImplemented.realData}</li>
         </ul>
+        <h3 className="mt-3 text-sm font-semibold text-amber-200">{copy.behindSwitchTitle}</h3>
+        <ul className="mt-1 list-disc space-y-1 ps-5 text-sm text-neutral-400" dir="auto">
+          <li>{copy.behindSwitch.persistence}</li>
+          <li>{copy.behindSwitch.sync}</li>
+        </ul>
+        <p className="mt-1 text-sm text-neutral-400" dir="auto">{copy.behindSwitch.status}</p>
       </section>
 
+      {demoMode ? (
       <section aria-label={copy.clock.title} className="rounded-xl border border-neutral-800 p-4" data-testid="donna-clock">
         <h2 className="text-sm font-semibold text-neutral-200">{copy.clock.title}</h2>
         <p className="mt-1 text-sm text-neutral-300">
@@ -69,7 +81,10 @@ export function DonnaInbox() {
           <button type="button" className={BUTTON} onClick={resetDemo}>{copy.clock.reset}</button>
         </div>
       </section>
+      ) : null}
 
+      {showLists ? (
+        <>
       <section aria-labelledby="donna-unresolved" className="space-y-3">
         <h2 id="donna-unresolved" className="text-lg font-semibold text-neutral-50">
           {copy.unresolvedTitle} <span data-testid="donna-unresolved-count">({inbox.unresolved.length})</span>
@@ -106,13 +121,15 @@ export function DonnaInbox() {
           ))
         )}
       </section>
+        </>
+      ) : null}
     </div>
   );
 }
 
 function QuestionCard({ question }: { question: OutcomeQuestion }) {
   const { dict } = useLocale();
-  const { state, now, clientLabel, markTaskDone, recordOutcome, snooze } = useDonna();
+  const { state, clockNow, clientLabel, prepare, send, sync } = useDonna();
   const copy = dict.donna;
   const offset = state.policy.utcOffsetMinutes;
   const [mode, setMode] = useState<Mode>("idle");
@@ -121,11 +138,36 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
   const [date, setDate] = useState("");
   const [dateTime, setDateTime] = useState("");
   const [confirmed, setConfirmed] = useState(false);
-  const [error, setError] = useState<DonnaErrorCode | null>(null);
+  const [error, setError] = useState<StoreErrorCode | null>(null);
+  const [pending, setPending] = useState(false);
+  // A submission is frozen on first use (id AND exact payload, including `at` and
+  // `until`). A retry with the same inputs re-sends that very object, so after an
+  // uncertain network result the database can recognise it as a duplicate. Changing
+  // any input makes a new submission with a new id.
+  const attempt = useRef<{ key: string; prepared: PreparedEvent } | null>(null);
+  const frozen = (key: string, make: () => PreparedEvent): PreparedEvent => {
+    if (attempt.current?.key !== key) attempt.current = { key, prepared: make() };
+    return attempt.current.prepared;
+  };
+  const locked = pending || sync.busy;
 
-  const finish = (code: DonnaErrorCode | null) => {
+  const apply = (code: StoreErrorCode | null) => {
     setError(code);
-    if (code === null) setMode("idle");
+    if (code === null) {
+      attempt.current = null;
+      setMode("idle");
+    }
+  };
+  const finish = (result: StoreErrorCode | null | Promise<StoreErrorCode | null>) => {
+    if (result instanceof Promise) {
+      setPending(true);
+      void result.then((code) => {
+        setPending(false);
+        apply(code);
+      });
+    } else {
+      apply(result);
+    }
   };
 
   const submitOutcome = (outcome: OutcomeKind) => {
@@ -136,7 +178,9 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
         nextAction = { kind: nextKind, at: localToInstant(dateTime, offset), clientConfirmed: confirmed };
       }
     }
-    finish(recordOutcome(question.callId, outcome, outcome === "CANCELLED" ? "" : note, nextAction));
+    const text = outcome === "CANCELLED" ? "" : note;
+    const key = JSON.stringify(["outcome", question.callId, outcome, text, nextKind, date, dateTime, confirmed]);
+    finish(send(frozen(key, () => prepare.outcome(question.callId, outcome, text, nextAction))));
   };
 
   const reminderText =
@@ -148,6 +192,7 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
 
   const open = (next: Mode) => {
     setError(null);
+    attempt.current = null;
     setMode(next);
   };
 
@@ -170,13 +215,13 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
 
       {mode === "idle" ? (
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={BUTTON} onClick={() => open("SPOKE")}>{copy.actions.spoke}</button>
-          <button type="button" className={BUTTON} onClick={() => open("NO_ANSWER")}>{copy.actions.noAnswer}</button>
-          <button type="button" className={BUTTON} onClick={() => open("DID_NOT_CALL")}>{copy.actions.didNotCall}</button>
-          <button type="button" className={BUTTON} onClick={() => open("snooze")}>{copy.actions.snooze}</button>
-          <button type="button" className={BUTTON} onClick={() => open("cancel")}>{copy.actions.cancel}</button>
+          <button type="button" disabled={locked} className={BUTTON} onClick={() => open("SPOKE")}>{copy.actions.spoke}</button>
+          <button type="button" disabled={locked} className={BUTTON} onClick={() => open("NO_ANSWER")}>{copy.actions.noAnswer}</button>
+          <button type="button" disabled={locked} className={BUTTON} onClick={() => open("DID_NOT_CALL")}>{copy.actions.didNotCall}</button>
+          <button type="button" disabled={locked} className={BUTTON} onClick={() => open("snooze")}>{copy.actions.snooze}</button>
+          <button type="button" disabled={locked} className={BUTTON} onClick={() => open("cancel")}>{copy.actions.cancel}</button>
           {question.taskMarkedDone ? null : (
-            <button type="button" className={`${BUTTON} text-neutral-400`} onClick={() => finish(markTaskDone(question.callId))}>
+            <button type="button" className={`${BUTTON} text-neutral-400`} onClick={() => finish(send(frozen(JSON.stringify(["done", question.callId]), () => prepare.taskDone(question.callId))))} disabled={locked}>
               {copy.actions.markTaskDone}
             </button>
           )}
@@ -187,9 +232,9 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
         <div className="space-y-2">
           <p className="text-sm text-neutral-300" dir="auto">{copy.snooze.title}</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={BUTTON} onClick={() => finish(snooze(question.callId, addMinutes(now, 60)))}>{copy.snooze.oneHour}</button>
-            <button type="button" className={BUTTON} onClick={() => finish(snooze(question.callId, addMinutes(now, 240)))}>{copy.snooze.fourHours}</button>
-            <button type="button" className={BUTTON} onClick={() => finish(snooze(question.callId, nextLocalMorning(now, state.policy, 9)))}>{copy.snooze.tomorrow}</button>
+            <button type="button" className={BUTTON} disabled={locked} onClick={() => finish(send(frozen(JSON.stringify(["snooze", question.callId, "1h"]), () => prepare.snooze(question.callId, addMinutes(clockNow(), 60)))))}>{copy.snooze.oneHour}</button>
+            <button type="button" className={BUTTON} disabled={locked} onClick={() => finish(send(frozen(JSON.stringify(["snooze", question.callId, "4h"]), () => prepare.snooze(question.callId, addMinutes(clockNow(), 240)))))}>{copy.snooze.fourHours}</button>
+            <button type="button" className={BUTTON} disabled={locked} onClick={() => finish(send(frozen(JSON.stringify(["snooze", question.callId, "tomorrow"]), () => prepare.snooze(question.callId, nextLocalMorning(clockNow(), state.policy, 9)))))}>{copy.snooze.tomorrow}</button>
             <button type="button" className={BUTTON} onClick={() => open("idle")}>{copy.actions.back}</button>
           </div>
         </div>
@@ -197,7 +242,7 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
 
       {mode === "cancel" ? (
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={BUTTON} onClick={() => submitOutcome("CANCELLED")}>{copy.actions.confirmCancel}</button>
+          <button type="button" disabled={locked} className={BUTTON} onClick={() => submitOutcome("CANCELLED")}>{copy.actions.confirmCancel}</button>
           <button type="button" className={BUTTON} onClick={() => open("idle")}>{copy.actions.back}</button>
         </div>
       ) : null}
@@ -257,10 +302,16 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
             </div>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <button type="submit" className={`${BUTTON} bg-amber-700 hover:bg-amber-600`}>{copy.actions.saveOutcome}</button>
+            <button type="submit" disabled={locked} className={`${BUTTON} bg-amber-700 hover:bg-amber-600`}>{copy.actions.saveOutcome}</button>
             <button type="button" className={BUTTON} onClick={() => open("idle")}>{copy.actions.back}</button>
           </div>
         </form>
+      ) : null}
+
+      {pending ? (
+        <p role="status" className="text-sm text-amber-300" dir="auto" data-testid={`donna-saving-${question.callId}`}>
+          {copy.sync.saving}
+        </p>
       ) : null}
 
       {error ? (

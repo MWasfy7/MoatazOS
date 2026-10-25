@@ -294,9 +294,10 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
      then repeat by hand on the owner's phone and laptop.
   4. **Hosted allowlist proof (blocked on owner setup):** `supabase/tests/hosted_probe.sql` reports `OVERALL PASS`
      in the synthetic project (fires the trigger directly), and optionally `npm run test:donna-live-trigger`, which
-     passes only with an allow-listed control that succeeds, a database-class refusal read over raw HTTP, no resulting
-     account, and the cause found in the Postgres logs; rate limits, network errors and unrelated failures are
-     INCONCLUSIVE and fail it.
+     records API observations (allow-listed control succeeds, unlisted refused, no account; read over raw HTTP) and
+     cannot pass alone; `npm run test:donna-verify-trigger` then needs a Postgres log line naming
+     `DONNA_SIGNUP_NOT_ALLOWED` inside the attempt window. A generic 500, rate limits, network errors and unrelated
+     failures are INCONCLUSIVE and fail.
   5. Retry safety (repair of review `88c1a07`): a retry re-sends the frozen request (id, `at`, `until`); an
      acknowledged write whose reload fails is reported as "stored, not yet shown" with recovery; loads are
      discarded across sign-out, account change and unmount. **Done locally (mock).**

@@ -7,7 +7,8 @@ import { defineConfig, devices } from "@playwright/test";
  * missing variable names; it never skips and never reports a pass it did not earn.
  *
  *   npm run test:donna-live            # acceptance
- *   npm run test:donna-live-trigger    # allowlist trigger through the Auth API (needs DON-02-SETUP.md section 9)
+ *   npm run test:donna-live-trigger    # trigger evidence, phase 1: API observations (cannot pass alone; section 9)
+ *   npm run test:donna-verify-trigger  # trigger evidence, phase 2: log attribution (separate config, needs no credentials)
  *
  * It leaves synthetic rows (call ids starting with `live-`) behind: events are
  * append-only by design, so use a throwaway project (docs/engineering/DON-02-SETUP.md).
@@ -29,11 +30,20 @@ if (missing.length > 0) {
   );
 }
 
+// The Supabase client builds a realtime client that needs a global WebSocket. Node 22+ has one; Node 20 does not
+// (CI runs Node 20 for the OFFLINE suite, which never constructs that client). Fail loudly rather than mid-run.
+if (typeof WebSocket === "undefined") {
+  throw new Error(
+    `Donna live acceptance is BLOCKED: Node ${process.versions.node} has no global WebSocket. Use Node 22+, or on Node 20 set NODE_OPTIONS=--experimental-websocket.`,
+  );
+}
+
 const port = Number(process.env.DONNA_LIVE_PORT ?? 3101);
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 
 export default defineConfig({
   testDir: "./tests/donna-live",
+  testMatch: ["**/acceptance.spec.ts", "**/allowlist-trigger.spec.ts"],
   fullyParallel: false,
   workers: 1,
   timeout: 90 * 1000,

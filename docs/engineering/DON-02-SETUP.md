@@ -67,7 +67,8 @@ Variable names (exact):
 | `NEXT_PUBLIC_DONNA_SUPABASE_ANON_KEY` | the anon/publishable key | the app and the harness |
 | `DONNA_LIVE_USER_A_EMAIL` / `DONNA_LIVE_USER_A_PASSWORD` | account A | the harness only |
 | `DONNA_LIVE_USER_B_EMAIL` / `DONNA_LIVE_USER_B_PASSWORD` | account B | the harness only |
-| `DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED` (`yes`), `DONNA_LIVE_TRIGGER_CONTROL_EMAIL`, `DONNA_LIVE_TRIGGER_CONTROL_PASSWORD` | section 9 only | `npm run test:donna-live-trigger` only |
+| `DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED` (`yes`), `DONNA_LIVE_TRIGGER_CONTROL_EMAIL`, `DONNA_LIVE_TRIGGER_CONTROL_PASSWORD` | section 9, phase 1 only | `npm run test:donna-live-trigger` only |
+| `DONNA_LIVE_TRIGGER_LOG_FILE` | path to the exported Postgres log lines (section 9, phase 2) | `npm run test:donna-verify-trigger` only |
 
 Where:
 - **Claude Code cloud session:** the cloud environment menu in the session title bar → **Edit** →
@@ -79,6 +80,9 @@ Where:
 - **Hosted app (later, not authorised yet):** the same three `NEXT_PUBLIC_DONNA_*` names in the host's environment settings.
 
 ## 7. Run the acceptance
+Node: the live harness needs **Node 22+** (the Supabase client builds a realtime client that needs a global `WebSocket`);
+on Node 20 set `NODE_OPTIONS=--experimental-websocket`. The harness stops with a clear message if neither holds.
+(The offline suite, including CI, runs on Node 20 and never constructs that client.)
 ```bash
 npm ci
 set -a; . ./.env.donna-live.local; set +a      # or use the cloud environment variables
@@ -102,25 +106,38 @@ the same record, and no second question for that call.
 - Signing out or switching account discards anything still loading for the previous account.
 
 ## 9. Prove the allowlist trigger itself (test project only)
-The SQL probe in step 3.2 is the required proof: it fires the trigger directly. A refused sign-up is **not** proof by
-itself (rate limits, network errors, email-delivery errors and bad input also refuse), and with the dashboard switch OFF
-the platform refuses before the database is reached. To also see the trigger act through the real Auth API, the test
-needs an **allow-listed control** that succeeds under the same conditions:
-1. In the **synthetic test project only** (never one that will hold real data):
-   - Authentication → Sign In / Providers → turn **ON** "Allow new users to sign up" and turn **OFF** "Confirm email".
-   - SQL Editor: allow-list a control address that is **not yet a user** (a throwaway address you control the password for):
-     `insert into public.donna_allowed_emails (email) values (lower('CONTROL-EMAIL'));`
-2. Set `DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED=yes`, `DONNA_LIVE_TRIGGER_CONTROL_EMAIL`, `DONNA_LIVE_TRIGGER_CONTROL_PASSWORD`
-   (same places as section 6), then run `npm run test:donna-live-trigger`. It passes only if **all** hold: the control
-   signs up and signs in; the unlisted address is refused with a **database-class** error (a 500 "Database error saving new
-   user"); the unlisted credentials cannot sign in. A rate limit, network error, email-delivery error, bad input, a
-   still-disabled sign-up switch, or an existing control user is reported as **INCONCLUSIVE and fails the test** with the reason.
-3. Attribute the cause: Dashboard → Logs → Postgres logs, search `DONNA_SIGNUP_NOT_ALLOWED`; there must be an entry at
-   the unlisted attempt time the test prints.
-4. Clean up: delete the control user (Authentication → Users), `delete from public.donna_allowed_emails where email = lower('CONTROL-EMAIL');`,
+The SQL probe in step 3.2 is the required proof: it fires the trigger directly. Through the Auth API, a refused
+sign-up is **not** proof of the cause: a generic 500 / `unexpected_failure` / "Internal server error", a rate limit,
+a network fault and an email problem all look like a refusal, and so would any server fault. Two kinds of evidence are
+therefore kept apart, and only the second can attribute the cause:
+- **API observations** (phase 1): an allow-listed control succeeds under the same conditions, the unlisted address is
+  refused with a server-side error, and no account exists for it.
+- **Verified log attribution** (phase 2): a Postgres log line naming `DONNA_SIGNUP_NOT_ALLOWED` inside the attempt window.
+
+Consistent API observations without verified attribution are **INCONCLUSIVE**, and INCONCLUSIVE fails.
+
+**Phase 1: record the API observations**
+1. In the **synthetic test project only** (never one that will hold real data): Authentication → Sign In / Providers →
+   turn **ON** "Allow new users to sign up" and turn **OFF** "Confirm email".
+2. SQL Editor: allow-list a control address that is **not yet a user** (a throwaway address you control the password for):
+   `insert into public.donna_allowed_emails (email) values (lower('CONTROL-EMAIL'));`
+3. Set `DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED=yes`, `DONNA_LIVE_TRIGGER_CONTROL_EMAIL`, `DONNA_LIVE_TRIGGER_CONTROL_PASSWORD`
+   (same places as section 6) and run `npm run test:donna-live-trigger`. **It is expected to end INCONCLUSIVE ("cause is not
+   attributed") and exit non-zero even when everything worked**; it fails outright if the control cannot be created, a rate
+   limit / network / email / input error occurs, the sign-up switch is still OFF, or the unlisted address got in. It writes
+   `.donna-live/trigger-evidence.json` (ignored by git) and prints the time of the unlisted attempt.
+
+**Phase 2: attribute the cause from the logs**
+4. Dashboard → Logs → Postgres logs: show the lines around the printed time (include the `DONNA_SIGNUP_NOT_ALLOWED` entry),
+   export or copy them into a text file. The real export format is unobserved: ISO timestamps and epoch timestamps are both read.
+5. Run `DONNA_LIVE_TRIGGER_LOG_FILE=path/to/log.txt npm run test:donna-verify-trigger` (no network, no credentials). It passes only if the phase-1
+   observations are consistent **and** one single log line names `DONNA_SIGNUP_NOT_ALLOWED` with a readable timestamp from 60 s
+   before to 120 s after the attempt. A missing file, no marker, a marker outside the window, or a marker line with no readable
+   timestamp is INCONCLUSIVE. The output reports "API observation" and "log attribution" separately.
+6. Clean up: delete the control user (Authentication → Users), `delete from public.donna_allowed_emails where email = lower('CONTROL-EMAIL');`,
    then turn sign-up **OFF** and "Confirm email" back to your intended value.
 If the unlisted sign-up ever succeeds the test FAILS and an unlisted account exists: delete it and stop.
-I have not seen the real responses; send me the printed verdict, status, code and message.
+I have not seen the real responses or the real log format; send me the printed lines (they contain no secrets).
 
 ## 10. What can only be validated on a real Supabase project
 Nothing below has been run; each is covered by the step named, and a failure of any of them is a finding, not a pass.
@@ -133,7 +150,7 @@ Nothing below has been run; each is covered by the step named, and a failure of 
 | Row-level security under a real JWT (`auth.uid()` from a signed token) | local claims are simulated | `npm run test:donna-live` ("a different account", "signed-out client") |
 | Password sign-in, session persistence across reload, token refresh, and the session in a second browser context | real Auth service and browser storage | `npm run test:donna-live` (UI test) and the phone check |
 | Dashboard setting names and defaults (sign-up, anonymous, password length) match what I describe | labels change | your walk through section 2; tell me any difference |
-| Sign-up refusal by the trigger through the Auth API, with an allow-listed control, and the Postgres-log attribution. The real response body for a trigger refusal (I expect a 500 "Database error saving new user"; the pinned SDK hides 500 bodies, so the test reads raw HTTP) | needs the platform's Auth service and logs | section 9 |
+| Sign-up refusal by the trigger through the Auth API (API observations, phase 1) and the Postgres-log attribution (phase 2). The real response body for a refusal (I expect a 500, possibly "Database error saving new user", possibly a generic message; either way it is not attributable on its own; the pinned SDK hides 500 bodies, so phase 1 reads raw HTTP) and the real log export format | needs the platform's Auth service and logs | section 9 |
 | The cloud environment's network policy lets the session reach `<project-ref>.supabase.co` | policy is yours | any live run (an unreachable host shows as OFFLINE) |
 | Free-plan behaviour (pausing, limits) | commercial terms | not testable; verify at sign-up |
 

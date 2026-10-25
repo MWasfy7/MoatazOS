@@ -1,12 +1,16 @@
 /**
- * Classification of Supabase Auth errors for the hosted allowlist-trigger test.
+ * Evidence rules for the hosted allowlist-trigger test.
  *
- * Why this exists: "sign-up returned some error" is NOT evidence about the database trigger.
- * Rate limits, network failures, email-delivery problems and plain bad input all produce
- * errors too. The test therefore needs (1) a CONTROL (an allow-listed address that succeeds
- * under the same conditions), (2) a refusal that is a database-class rejection, and (3) proof
- * that no account exists. Anything else is INCONCLUSIVE, and the live test treats
- * INCONCLUSIVE as a failure: it never passes on weak evidence.
+ * Two kinds of evidence are kept apart on purpose:
+ *  1. API OBSERVATIONS: what the Auth endpoints returned for an allow-listed control and for an unlisted
+ *     address. These can show "the unlisted address was refused where the control was not". They can
+ *     NEVER show WHY: a generic 500 / unexpected_failure / "Internal server error", a rate limit, a network
+ *     fault or an email problem all look like a refusal, and so would any server fault.
+ *  2. VERIFIED LOG ATTRIBUTION: a Postgres log line that names DONNA_SIGNUP_NOT_ALLOWED (the exception raised
+ *     by the trigger) and falls inside the unlisted attempt's time window. Only this attributes the
+ *     refusal to the trigger.
+ * PASS requires both. Consistent API observations without verified attribution are INCONCLUSIVE, and the
+ * live test treats INCONCLUSIVE as a failure: it never passes on weak evidence.
  */
 export interface AuthErrorLike {
   status?: number | null;
@@ -25,7 +29,10 @@ export type ErrorClass =
   | "EMAIL_NOT_CONFIRMED"
   | "INVALID_CREDENTIALS"
   | "INVALID_INPUT"
+  /** A 500 whose body names a database failure while creating the user. Still not attributable to OUR trigger. */
   | "DATABASE_REJECTION"
+  /** Any other 5xx (generic 500, unexpected_failure, "Internal server error", empty body). Could be any server fault. */
+  | "GENERIC_SERVER_ERROR"
   | "OTHER";
 
 export function classifyAuthError(error: AuthErrorLike | null | undefined): ErrorClass {
@@ -56,10 +63,11 @@ export function classifyAuthError(error: AuthErrorLike | null | undefined): Erro
   if (["weak_password", "validation_failed", "email_address_invalid", "bad_json"].includes(code) || status === 422) {
     return "INVALID_INPUT";
   }
-  // GoTrue reports a failing database trigger on user creation as a 500 "Database error saving new user".
-  if (status === 500 && (code === "unexpected_failure" || /database error saving new user/i.test(message))) {
-    return "DATABASE_REJECTION";
-  }
+  // A failing trigger on user creation is reported as a 500 "Database error saving new user", but ANY
+  // database failure produces that message, so even this class is not attributable to our trigger.
+  if (status === 500 && /database error saving new user/i.test(message)) return "DATABASE_REJECTION";
+  if (status !== undefined && status >= 500) return "GENERIC_SERVER_ERROR";
+  if (code === "unexpected_failure") return "GENERIC_SERVER_ERROR";
   return "OTHER";
 }
 
@@ -72,10 +80,71 @@ export interface TriggerEvidenceInput {
   unlistedSignIn: { error: AuthErrorLike | null; signedInOk: boolean };
 }
 
-export type TriggerVerdict = { verdict: "PASS" | "FAIL" | "INCONCLUSIVE"; reason: string };
+/** Log attribution, checked separately from the API observations. */
+export type Attribution =
+  | { status: "NOT_SUPPLIED" }
+  | { status: "REJECTED"; reason: string }
+  | { status: "VERIFIED"; matchedLine: string; at: string };
 
-const inconclusive = (reason: string): TriggerVerdict => ({ verdict: "INCONCLUSIVE", reason });
-const fail = (reason: string): TriggerVerdict => ({ verdict: "FAIL", reason });
+export const TRIGGER_LOG_MARKER = "DONNA_SIGNUP_NOT_ALLOWED";
+const WINDOW_BEFORE_MS = 60_000;
+const WINDOW_AFTER_MS = 120_000;
+
+const ISO_TIME = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}(?::?\d{2})?)?/g;
+const EPOCH_TIME = /(?<!\d)(\d{16}|\d{13})(?!\d)/g;
+
+function timesIn(line: string): number[] {
+  const out: number[] = [];
+  for (const match of line.matchAll(ISO_TIME)) {
+    let text = match[0].replace(" ", "T");
+    if (!/(Z|[+-]\d{2}(:?\d{2})?)$/.test(text)) text += "Z";
+    else if (/[+-]\d{2}$/.test(text)) text += ":00";
+    else if (/[+-]\d{4}$/.test(text)) text = text.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+    const ms = Date.parse(text);
+    if (!Number.isNaN(ms)) out.push(ms);
+  }
+  for (const match of line.matchAll(EPOCH_TIME)) {
+    const digits = match[1] as string;
+    out.push(digits.length === 16 ? Math.floor(Number(digits) / 1000) : Number(digits));
+  }
+  return out;
+}
+
+/**
+ * Check an exported Postgres log excerpt: some single line must name DONNA_SIGNUP_NOT_ALLOWED and carry a
+ * timestamp inside [attempt - 60 s, attempt + 120 s]. A marker line without a readable timestamp, or one
+ * outside the window, does not attribute anything. (The real export format is unobserved; ISO and epoch
+ * timestamps are accepted.)
+ */
+export function verifyLogAttribution(logText: string | null | undefined, attemptedAt: string): Attribution {
+  if (!logText || logText.trim() === "") return { status: "NOT_SUPPLIED" };
+  const attempt = Date.parse(attemptedAt);
+  if (Number.isNaN(attempt)) return { status: "REJECTED", reason: "the attempt time is not a valid timestamp" };
+  const markerLines = logText.split(/\r?\n/).filter((line) => line.includes(TRIGGER_LOG_MARKER));
+  if (markerLines.length === 0) return { status: "REJECTED", reason: `no log line contains ${TRIGGER_LOG_MARKER}` };
+  for (const line of markerLines) {
+    const hit = timesIn(line).find((t) => t >= attempt - WINDOW_BEFORE_MS && t <= attempt + WINDOW_AFTER_MS);
+    if (hit !== undefined) return { status: "VERIFIED", matchedLine: line.trim().slice(0, 300), at: new Date(hit).toISOString() };
+  }
+  return {
+    status: "REJECTED",
+    reason: `${markerLines.length} log line(s) contain ${TRIGGER_LOG_MARKER}, but none carries a readable timestamp within 60 s before to 120 s after the attempt at ${attemptedAt}`,
+  };
+}
+
+export interface ApiObservation {
+  observation: "CONSISTENT" | "INCONCLUSIVE" | "FAIL";
+  reason: string;
+}
+
+export interface TriggerVerdict {
+  verdict: "PASS" | "FAIL" | "INCONCLUSIVE";
+  reason: string;
+  /** What the Auth API showed. Never attributes a cause. */
+  api: ApiObservation;
+  /** What the log check showed. The only evidence that can attribute the cause. */
+  attribution: Attribution;
+}
 
 const CONTROL_ADVICE: Partial<Record<ErrorClass, string>> = {
   NETWORK: "network problem reaching the project",
@@ -87,20 +156,16 @@ const CONTROL_ADVICE: Partial<Record<ErrorClass, string>> = {
   INVALID_CREDENTIALS: "the control credentials were rejected",
   INVALID_INPUT: "the control address or password was rejected as invalid input",
   DATABASE_REJECTION: "the allow-listed control address was rejected by the database: the control address is probably not on the allowlist",
+  GENERIC_SERVER_ERROR: "the project returned a generic server error for the control address",
   OTHER: "an unrecognised error",
 };
 
-/**
- * Decide whether the run shows that the DATABASE refused the unlisted address.
- * PASS requires all of: the allowed control was created and can sign in (same conditions, so
- * sign-up is open, there is no rate limit or network problem, and the API path works); the unlisted
- * sign-up failed with a database-class rejection and created no user; and the unlisted
- * credentials cannot sign in. Everything else is FAIL (an account was created) or INCONCLUSIVE.
- */
-export function decideTriggerEvidence(input: TriggerEvidenceInput): TriggerVerdict {
+function observeApi(input: TriggerEvidenceInput): { observation: ApiObservation; failed: boolean } {
   const { control, unlisted, unlistedSignIn } = input;
+  const inconclusive = (reason: string) => ({ observation: { observation: "INCONCLUSIVE" as const, reason }, failed: false });
+  const fail = (reason: string) => ({ observation: { observation: "FAIL" as const, reason }, failed: true });
 
-  // 1. The control must succeed completely.
+  // 1. The control must succeed completely (same conditions: sign-up open, no rate limit, API path works).
   if (control.signUpError || !control.userId) {
     const cls = classifyAuthError(control.signUpError);
     return inconclusive(`control sign-up of the ALLOW-LISTED address did not succeed (${cls}): ${CONTROL_ADVICE[cls] ?? "no user returned"}`);
@@ -110,17 +175,17 @@ export function decideTriggerEvidence(input: TriggerEvidenceInput): TriggerVerdi
     return inconclusive(`control user could not sign in (${cls}): ${CONTROL_ADVICE[cls] ?? "no session"}`);
   }
 
-  // 2. The unlisted sign-up must be refused by the database, and create no user.
+  // 2. The unlisted sign-up must have failed and created no user.
   if (!unlisted.signUpError) {
     return fail(unlisted.userId
-      ? "an account was CREATED for the unlisted address: the allowlist trigger did not stop it"
-      : "sign-up of the unlisted address reported no error: the trigger did not refuse it");
+      ? "an account was CREATED for the unlisted address: the allowlist did not stop it"
+      : "sign-up of the unlisted address reported no error: nothing refused it");
   }
   const cls = classifyAuthError(unlisted.signUpError);
-  if (cls !== "DATABASE_REJECTION") {
-    return inconclusive(`the unlisted sign-up failed, but not with a database-class rejection (${cls}); this is not evidence about the trigger`);
+  if (cls !== "DATABASE_REJECTION" && cls !== "GENERIC_SERVER_ERROR") {
+    return inconclusive(`the unlisted sign-up failed, but not with a server-side refusal (${cls}); this is not evidence about the trigger`);
   }
-  if (unlisted.userId) return fail("the sign-up reported a database error but a user id was returned");
+  if (unlisted.userId) return fail("the sign-up reported a server error but a user id was returned");
 
   // 3. No account exists for the unlisted address.
   if (unlistedSignIn.signedInOk || !unlistedSignIn.error) return fail("the unlisted address CAN sign in: an account exists");
@@ -130,11 +195,32 @@ export function decideTriggerEvidence(input: TriggerEvidenceInput): TriggerVerdi
   }
 
   return {
-    verdict: "PASS",
-    reason:
-      "allow-listed control succeeded under the same conditions; the unlisted address got a database-class rejection and no account exists. " +
-      "Attribute the cause to the trigger by finding DONNA_SIGNUP_NOT_ALLOWED in the Postgres logs for this time (DON-02-SETUP.md section 9).",
+    observation: {
+      observation: "CONSISTENT",
+      reason: `the allow-listed control succeeded; the unlisted address got a ${cls === "DATABASE_REJECTION" ? "database-class" : "generic"} server error (${unlisted.signUpError.status} ${unlisted.signUpError.code ?? ""}: ${unlisted.signUpError.message ?? ""}) and no account exists. This is what the trigger would produce, and also what any server fault would produce`,
+    },
+    failed: false,
   };
+}
+
+/**
+ * Combine the two kinds of evidence. FAIL when the API shows the unlisted address got in. PASS only when
+ * the API observations are consistent AND the log attribution is VERIFIED. Everything else is INCONCLUSIVE.
+ */
+export function decideTriggerEvidence(input: TriggerEvidenceInput, attribution: Attribution = { status: "NOT_SUPPLIED" }): TriggerVerdict {
+  const { observation, failed } = observeApi(input);
+  const result = (verdict: TriggerVerdict["verdict"], reason: string): TriggerVerdict => ({ verdict, reason, api: observation, attribution });
+
+  if (failed) return result("FAIL", observation.reason);
+  if (observation.observation === "INCONCLUSIVE") return result("INCONCLUSIVE", observation.reason);
+
+  if (attribution.status === "VERIFIED") {
+    return result("PASS", `${observation.reason}. A log line naming ${TRIGGER_LOG_MARKER} at ${attribution.at} falls inside the attempt window, which attributes the refusal to the trigger: ${attribution.matchedLine}`);
+  }
+  if (attribution.status === "REJECTED") {
+    return result("INCONCLUSIVE", `${observation.reason}. The supplied log excerpt does not attribute it: ${attribution.reason}`);
+  }
+  return result("INCONCLUSIVE", `${observation.reason}. The cause is not attributed: supply the Postgres log excerpt showing ${TRIGGER_LOG_MARKER} for the attempt time (DON-02-SETUP.md section 9) and verify it`);
 }
 
 /**

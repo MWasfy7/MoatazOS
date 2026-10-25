@@ -225,7 +225,10 @@ export function createSupabaseRemote(client: SupabaseLike): DonnaRemote {
         try {
           const { error } = await client.auth.signInWithPassword({ email, password });
           if (!error) return null;
-          if (error.status === 0 || /fetch|network/i.test(error.message ?? "")) return "OFFLINE";
+          // The SDK wraps every HTTP 5xx as a retryable fetch error with the body discarded, so a server
+          // problem must never be shown as "wrong password".
+          if (error.status === 429 || /rate.?limit|too many requests/i.test(error.message ?? "") || error.code === "over_request_rate_limit") return "RATE_LIMITED";
+          if (error.name === "AuthRetryableFetchError" || error.status === 0 || (error.status ?? 0) >= 500 || /fetch|network/i.test(error.message ?? "")) return "OFFLINE";
           return "INVALID_CREDENTIALS";
         } catch {
           return "OFFLINE";

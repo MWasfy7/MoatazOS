@@ -11,6 +11,7 @@ export type StoreErrorCode =
   | "NOT_SIGNED_IN"
   | "NOT_ALLOWED"
   | "INVALID_CREDENTIALS"
+  | "RATE_LIMITED"
   | "OFFLINE"
   | "EVENT_ID_REUSED"
   | "CALL_CONFLICT"

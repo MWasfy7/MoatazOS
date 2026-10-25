@@ -1,40 +1,51 @@
 /**
- * DON-02: prove the DATABASE allowlist trigger through the Auth API, independently of the
- * dashboard sign-up switch. Run only in the dedicated SYNTHETIC test project, and only while
- * "Allow new users to sign up" is TEMPORARILY ON (docs/engineering/DON-02-SETUP.md §9).
+ * DON-02: evidence, through the Auth API, that the DATABASE allowlist trigger refuses an unlisted
+ * address. Run only in the dedicated SYNTHETIC test project (docs/engineering/DON-02-SETUP.md §9).
  *
  *   DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED=yes npm run test:donna-live-trigger
  *
- * With the switch ON, an unlisted address can only be refused by the trigger. If the switch is
- * still OFF the refusal is the platform's own `signup_disabled`, which proves nothing about the
- * trigger, so this test FAILS (it never skips and never passes on that evidence).
- * The SQL probe (supabase/tests/hosted_probe.sql) exercises the trigger directly and is required either way.
+ * "Sign-up returned some error" is not evidence: rate limits, network failures, email-delivery
+ * problems and bad input all produce errors, and the SDK hides the body of HTTP 500 responses, so this test
+ * calls the Auth endpoints over raw HTTP and reads the real response body. It therefore needs an allow-listed CONTROL
+ * that succeeds under the same conditions, a database-class refusal for the unlisted address, and
+ * proof that no account exists. INCONCLUSIVE fails the test; it never passes on weak evidence.
+ * The cause is attributed to the trigger by finding DONNA_SIGNUP_NOT_ALLOWED in the Postgres logs
+ * for the printed time. The SQL probe (supabase/tests/hosted_probe.sql) fires the trigger directly
+ * and is required either way.
  */
-import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
+import { collectTriggerEvidence, createHttpAuth, decideTriggerEvidence } from "../helpers/donnaTriggerEvidence";
 
 const RUN = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const url = process.env.NEXT_PUBLIC_DONNA_SUPABASE_URL as string;
+const anonKey = process.env.NEXT_PUBLIC_DONNA_SUPABASE_ANON_KEY as string;
 
-test("with dashboard sign-up ON, the database trigger alone refuses an unlisted address", async () => {
+test("an allow-listed control succeeds and an unlisted address is refused by the database, under the same conditions", async () => {
   expect(
     process.env.DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED,
-    "BLOCKED: set DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED=yes only after turning dashboard sign-up ON in the synthetic test project (DON-02-SETUP.md section 9), and turn it OFF again afterwards",
+    "BLOCKED: set DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED=yes only after turning dashboard sign-up ON and 'Confirm email' OFF in the synthetic test project (DON-02-SETUP.md section 9), and restore both afterwards",
   ).toBe("yes");
+  const controlEmail = process.env.DONNA_LIVE_TRIGGER_CONTROL_EMAIL;
+  const controlPassword = process.env.DONNA_LIVE_TRIGGER_CONTROL_PASSWORD;
+  expect(
+    Boolean(controlEmail && controlPassword),
+    "BLOCKED: set DONNA_LIVE_TRIGGER_CONTROL_EMAIL and DONNA_LIVE_TRIGGER_CONTROL_PASSWORD: an address you allow-listed in the database that is NOT yet a user (DON-02-SETUP.md section 9)",
+  ).toBe(true);
 
-  const client = createClient(process.env.NEXT_PUBLIC_DONNA_SUPABASE_URL as string, process.env.NEXT_PUBLIC_DONNA_SUPABASE_ANON_KEY as string, {
-    auth: { persistSession: false },
-  });
-  const credentials = { email: `stranger-${RUN}@example.test`, password: `Xy-${RUN}-pw-9!` };
-  const { data, error } = await client.auth.signUp(credentials);
+  const unlistedCreds = { email: `stranger-${RUN}@example.test`, password: `Xy-${RUN}-pw-9!` };
+  // Control (an address that IS on the allowlist) and then the unlisted address, same client path, same conditions.
+  const evidence = await collectTriggerEvidence(createHttpAuth(url, anonKey), { email: controlEmail as string, password: controlPassword as string }, unlistedCreds);
+  const verdict = decideTriggerEvidence(evidence);
+  const attemptedAt = evidence.unlistedAttemptedAt;
 
-  expect(error, "sign-up must be refused").not.toBeNull();
-  expect(data.session).toBeNull();
-  // The platform's own refusal when the switch is OFF. Seeing it means this run proved nothing about the trigger.
-  expect(error?.code, "dashboard sign-up is still OFF: this run does not exercise the trigger").not.toBe("signup_disabled");
-  expect(error?.message ?? "", "dashboard sign-up is still OFF: this run does not exercise the trigger").not.toMatch(/signups? not allowed/i);
-
-  // And no account was created behind the error.
-  const attempt = await client.auth.signInWithPassword(credentials);
-  expect(attempt.error, "no account may exist for the refused address").not.toBeNull();
-  test.info().annotations.push({ type: "observed refusal", description: `${error?.status ?? "?"} ${error?.code ?? "?"}: ${error?.message ?? ""}` });
+  const refusal = evidence.unlisted.signUpError;
+  const observed = refusal ? `${refusal.status ?? "?"} ${refusal.code ?? "?"}: ${refusal.message ?? ""}` : "no error";
+  test.info().annotations.push(
+    { type: "verdict", description: `${verdict.verdict}: ${verdict.reason}` },
+    { type: "unlisted sign-up attempted at (UTC)", description: attemptedAt },
+    { type: "observed unlisted refusal", description: observed },
+    { type: "next step", description: "Dashboard > Logs > Postgres logs: find DONNA_SIGNUP_NOT_ALLOWED near that time, then delete the control user and its allowlist row" },
+  );
+  console.log(`[trigger evidence] ${verdict.verdict}: ${verdict.reason}\n[trigger evidence] unlisted sign-up at ${attemptedAt}: ${observed}`);
+  expect(verdict.verdict, verdict.reason).toBe("PASS");
 });

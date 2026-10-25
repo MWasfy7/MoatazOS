@@ -67,6 +67,7 @@ Variable names (exact):
 | `NEXT_PUBLIC_DONNA_SUPABASE_ANON_KEY` | the anon/publishable key | the app and the harness |
 | `DONNA_LIVE_USER_A_EMAIL` / `DONNA_LIVE_USER_A_PASSWORD` | account A | the harness only |
 | `DONNA_LIVE_USER_B_EMAIL` / `DONNA_LIVE_USER_B_PASSWORD` | account B | the harness only |
+| `DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED` (`yes`), `DONNA_LIVE_TRIGGER_CONTROL_EMAIL`, `DONNA_LIVE_TRIGGER_CONTROL_PASSWORD` | section 9 only | `npm run test:donna-live-trigger` only |
 
 Where:
 - **Claude Code cloud session:** the cloud environment menu in the session title bar → **Edit** →
@@ -101,17 +102,25 @@ the same record, and no second question for that call.
 - Signing out or switching account discards anything still loading for the previous account.
 
 ## 9. Prove the allowlist trigger itself (test project only)
-The SQL probe in step 3.2 is the required proof: it fires the trigger directly. The dashboard sign-up switch alone
-proves nothing about the trigger (with the switch OFF the platform refuses first). To also see the trigger refuse a
-real Auth API sign-up:
-1. In the **synthetic test project only** (never one that will hold real data): Authentication → Sign In / Providers →
-   turn **ON** "Allow new users to sign up".
-2. Run `DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED=yes npm run test:donna-live-trigger`. It tries to sign up an unlisted
-   address and requires the refusal to be something other than the platform's own `signup_disabled`, and that no account exists afterwards.
-3. Turn the switch **OFF** again right away.
-If the switch is still OFF the test fails on purpose ("proves nothing about the trigger").
-I expect a database error such as "Database error saving new user", but I have not seen the real response: report the
-status, code and message the test prints.
+The SQL probe in step 3.2 is the required proof: it fires the trigger directly. A refused sign-up is **not** proof by
+itself (rate limits, network errors, email-delivery errors and bad input also refuse), and with the dashboard switch OFF
+the platform refuses before the database is reached. To also see the trigger act through the real Auth API, the test
+needs an **allow-listed control** that succeeds under the same conditions:
+1. In the **synthetic test project only** (never one that will hold real data):
+   - Authentication → Sign In / Providers → turn **ON** "Allow new users to sign up" and turn **OFF** "Confirm email".
+   - SQL Editor: allow-list a control address that is **not yet a user** (a throwaway address you control the password for):
+     `insert into public.donna_allowed_emails (email) values (lower('CONTROL-EMAIL'));`
+2. Set `DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED=yes`, `DONNA_LIVE_TRIGGER_CONTROL_EMAIL`, `DONNA_LIVE_TRIGGER_CONTROL_PASSWORD`
+   (same places as section 6), then run `npm run test:donna-live-trigger`. It passes only if **all** hold: the control
+   signs up and signs in; the unlisted address is refused with a **database-class** error (a 500 "Database error saving new
+   user"); the unlisted credentials cannot sign in. A rate limit, network error, email-delivery error, bad input, a
+   still-disabled sign-up switch, or an existing control user is reported as **INCONCLUSIVE and fails the test** with the reason.
+3. Attribute the cause: Dashboard → Logs → Postgres logs, search `DONNA_SIGNUP_NOT_ALLOWED`; there must be an entry at
+   the unlisted attempt time the test prints.
+4. Clean up: delete the control user (Authentication → Users), `delete from public.donna_allowed_emails where email = lower('CONTROL-EMAIL');`,
+   then turn sign-up **OFF** and "Confirm email" back to your intended value.
+If the unlisted sign-up ever succeeds the test FAILS and an unlisted account exists: delete it and stop.
+I have not seen the real responses; send me the printed verdict, status, code and message.
 
 ## 10. What can only be validated on a real Supabase project
 Nothing below has been run; each is covered by the step named, and a failure of any of them is a finding, not a pass.
@@ -124,7 +133,7 @@ Nothing below has been run; each is covered by the step named, and a failure of 
 | Row-level security under a real JWT (`auth.uid()` from a signed token) | local claims are simulated | `npm run test:donna-live` ("a different account", "signed-out client") |
 | Password sign-in, session persistence across reload, token refresh, and the session in a second browser context | real Auth service and browser storage | `npm run test:donna-live` (UI test) and the phone check |
 | Dashboard setting names and defaults (sign-up, anonymous, password length) match what I describe | labels change | your walk through section 2; tell me any difference |
-| Sign-up refusal by the trigger through the Auth API | needs the platform's Auth service | section 9 |
+| Sign-up refusal by the trigger through the Auth API, with an allow-listed control, and the Postgres-log attribution. The real response body for a trigger refusal (I expect a 500 "Database error saving new user"; the pinned SDK hides 500 bodies, so the test reads raw HTTP) | needs the platform's Auth service and logs | section 9 |
 | The cloud environment's network policy lets the session reach `<project-ref>.supabase.co` | policy is yours | any live run (an unreachable host shows as OFFLINE) |
 | Free-plan behaviour (pausing, limits) | commercial terms | not testable; verify at sign-up |
 

@@ -152,6 +152,7 @@ export const en = {
       NOT_SIGNED_IN: "You are signed out. Sign in again; nothing was saved.",
       NOT_ALLOWED: "This account is not authorised.",
       INVALID_CREDENTIALS: "Email or password is incorrect.",
+      RATE_LIMITED: "Too many attempts. Wait a moment and try again.",
       OFFLINE: "Could not reach the database. Nothing was confirmed as saved; you can retry safely.",
       EVENT_ID_REUSED: "This attempt was already recorded with different content. Reload to see what was saved.",
       CALL_CONFLICT: "A planned call with that id already exists with different details.",

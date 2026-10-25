@@ -157,6 +157,13 @@ describe("Donna Supabase adapter (MOCK SDK)", () => {
     expect(await bad.auth.signInWithPassword("a@example.test", "x")).toBe("INVALID_CREDENTIALS");
     const offline = createSupabaseRemote(fakeClient({ auth: { ...fakeClient().auth, signInWithPassword: async () => ({ error: { message: "Failed to fetch", status: 0 } }) } }));
     expect(await offline.auth.signInWithPassword("a@example.test", "x")).toBe("OFFLINE");
+    // A server problem or rate limit must never be shown as "wrong password".
+    const signInWith = (error: Record<string, unknown>) =>
+      createSupabaseRemote(fakeClient({ auth: { ...fakeClient().auth, signInWithPassword: async () => ({ error }) } })).auth.signInWithPassword("a@example.test", "x");
+    expect(await signInWith({ name: "AuthRetryableFetchError", status: 500, message: "{}" })).toBe("OFFLINE");
+    expect(await signInWith({ status: 503, message: "upstream" })).toBe("OFFLINE");
+    expect(await signInWith({ status: 429, code: "over_request_rate_limit", message: "Request rate limit reached" })).toBe("RATE_LIMITED");
+    expect(await signInWith({ status: 400, code: "invalid_credentials", message: "Invalid login credentials" })).toBe("INVALID_CREDENTIALS");
     const signedIn = createSupabaseRemote(fakeClient({ auth: { ...fakeClient().auth, getSession: async () => ({ data: { session: { user: { email: "a@example.test" } } } }) } }));
     expect(await signedIn.auth.currentEmail()).toBe("a@example.test");
     expect(await createSupabaseRemote(fakeClient()).auth.currentEmail()).toBeNull();

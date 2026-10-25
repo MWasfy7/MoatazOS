@@ -11,6 +11,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { DonnaStoreError, type DonnaRemote } from "@/lib/donna";
 import { createSupabaseRemoteFromConfig } from "@/lib/donna/remote/supabaseStore";
 import { CONTRACT_SCENARIOS } from "../helpers/donnaStoreContract";
+import { classifyAuthError, createHttpAuth } from "../helpers/donnaTriggerEvidence";
 
 const env = (name: string) => process.env[name] as string;
 const CONFIG = { url: env("NEXT_PUBLIC_DONNA_SUPABASE_URL"), anonKey: env("NEXT_PUBLIC_DONNA_SUPABASE_ANON_KEY") };
@@ -132,15 +133,20 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
   });
 
   test("the server refuses sign-up for an address that is not on the allowlist (dashboard switch and/or trigger)", async () => {
-    const client = createClient(CONFIG.url, CONFIG.anonKey, { auth: { persistSession: false } });
-    const { data, error } = await client.auth.signUp({ email: `stranger-${RUN}@example.test`, password: `Xy-${RUN}-pw-9!` });
+    // Raw HTTP: the SDK hides the body of HTTP 500 responses (see donnaTriggerEvidence.ts).
+    const outcome = await createHttpAuth(CONFIG.url, CONFIG.anonKey).signUp({ email: `stranger-${RUN}@example.test`, password: `Xy-${RUN}-pw-9!` });
+    const error = outcome.error;
     expect(error, "sign-up must be rejected by the server").not.toBeNull();
-    expect(data.session).toBeNull();
-    // With the dashboard switch OFF this refusal is the platform's, NOT evidence about the database trigger.
+    expect(outcome.hasSession).toBe(false);
+    // Only a deliberate refusal counts. Rate limits, network errors and unrelated auth failures are NOT
+    // accepted as "refused", they make this test fail (and are never evidence about the trigger).
+    const refusal = classifyAuthError(error);
+    expect(["PLATFORM_SIGNUP_DISABLED", "DATABASE_REJECTION"], `sign-up failed for another reason (${refusal}): ${error?.message ?? ""}`).toContain(refusal);
+    // With the dashboard switch OFF the refusal is the platform's, NOT evidence about the database trigger.
     // The trigger itself is proven by supabase/tests/hosted_probe.sql and `npm run test:donna-live-trigger`.
     test.info().annotations.push({
       type: "refusal source",
-      description: error?.code === "signup_disabled" ? "dashboard switch (trigger not exercised by this test)" : `${error?.code ?? "?"}: ${error?.message ?? ""}`,
+      description: refusal === "PLATFORM_SIGNUP_DISABLED" ? "dashboard switch (trigger not exercised by this test)" : `${refusal}: ${error?.code ?? "?"} ${error?.message ?? ""}`,
     });
   });
 });

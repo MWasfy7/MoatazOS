@@ -146,6 +146,9 @@ export function DonnaProvider({ children, remote: injectedRemote, syncConfig, cl
   // previous identity is discarded instead of repopulating the screen.
   const epochRef = useRef(0);
   const emailRef = useRef<string | null>(null);
+  // Counts every auth notification. A session lookup that started before a notification
+  // is older news than that notification and must be discarded.
+  const authSeqRef = useRef(0);
 
   const resetIdentity = useCallback((next: string | null) => {
     epochRef.current += 1;
@@ -216,13 +219,22 @@ export function DonnaProvider({ children, remote: injectedRemote, syncConfig, cl
       setRemote(r);
       unsubscribe = r.auth.onChange((nextEmail) => {
         if (cancelled) return;
+        authSeqRef.current += 1;
         const next = normalizeEmail(nextEmail);
-        if (next === emailRef.current) return; // e.g. a token refresh for the same account
+        if (next === emailRef.current) {
+          // e.g. a token refresh for the same account. A "signed out" notice while we are
+          // still waiting for the first answer settles that wait.
+          if (next === null) setPhase((phase) => (phase === "LOADING" ? "SIGNED_OUT" : phase));
+          return;
+        }
         resetIdentity(next);
         if (next) void loadNow();
       });
+      const lookupSeq = authSeqRef.current;
       const current = normalizeEmail(await r.auth.currentEmail());
       if (cancelled) return;
+      // An auth notification arrived while we were asking: it is newer than this answer.
+      if (authSeqRef.current !== lookupSeq) return;
       if (current) {
         adoptIdentity(current);
         await loadNow();
@@ -383,6 +395,9 @@ export function DonnaProvider({ children, remote: injectedRemote, syncConfig, cl
         setBusy(true);
         let failure: ActionResult = null;
         for (const call of buildSyntheticCalls(clock())) {
+          // Re-check before EVERY write: after sign-out, an account change or unmount the
+          // remaining writes belong to a previous identity and must never start.
+          if (epoch !== epochRef.current) return null;
           try {
             await r.store.upsertCall(call);
           } catch (error) {

@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:donna-db": "bash scripts/donna-db-test.sh",
-    "test:donna-live": "playwright test -c playwright.donna-live.config.ts"
+    "test:donna-live": "playwright test -c playwright.donna-live.config.ts acceptance",
+    "test:donna-live-trigger": "playwright test -c playwright.donna-live.config.ts allowlist-trigger"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.109.0",

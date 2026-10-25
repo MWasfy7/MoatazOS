@@ -148,6 +148,7 @@ export const en = {
     },
     errors: {
       UNKNOWN_CALL: "That call does not exist.",
+      WRITE_CONFIRMED_REFRESH_FAILED: "The database confirmed this save and it is stored, but the screen could not reload. Use Reload from database, or Save again: it will not be saved twice.",
       NOT_SIGNED_IN: "You are signed out. Sign in again; nothing was saved.",
       NOT_ALLOWED: "This account is not authorised.",
       INVALID_CREDENTIALS: "Email or password is incorrect.",

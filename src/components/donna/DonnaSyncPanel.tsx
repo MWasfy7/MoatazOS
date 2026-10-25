@@ -108,6 +108,12 @@ export function DonnaSyncPanel() {
         </div>
       ) : null}
 
+      {sync.recovery ? (
+        <p role="alert" className="text-sm text-amber-300" dir="auto" data-testid="donna-recovery">
+          {copy.errors.WRITE_CONFIRMED_REFRESH_FAILED}
+        </p>
+      ) : null}
+
       {sync.notice ? (
         <p role="alert" className="text-sm text-amber-300" dir="auto" data-testid="donna-sync-notice">
           {copy.errors[sync.notice]}

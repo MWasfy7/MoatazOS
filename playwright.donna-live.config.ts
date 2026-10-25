@@ -6,7 +6,8 @@ import { defineConfig, devices } from "@playwright/test";
  * environment (never the repository). Without them it FAILS with the list of
  * missing variable names; it never skips and never reports a pass it did not earn.
  *
- *   npm run test:donna-live
+ *   npm run test:donna-live            # acceptance
+ *   npm run test:donna-live-trigger    # allowlist trigger through the Auth API (needs DON-02-SETUP.md section 9)
  *
  * It leaves synthetic rows (call ids starting with `live-`) behind: events are
  * append-only by design, so use a throwaway project (docs/engineering/DON-02-SETUP.md).

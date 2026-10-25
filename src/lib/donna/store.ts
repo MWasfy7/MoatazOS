@@ -16,6 +16,8 @@ export type StoreErrorCode =
   | "CALL_CONFLICT"
   | "INVALID_PAYLOAD"
   | "SYNC_UNAVAILABLE"
+  /** The database acknowledged the write, but reloading the records failed. The change IS stored. */
+  | "WRITE_CONFIRMED_REFRESH_FAILED"
   | "UNKNOWN";
 
 /** Codes the database can return that are also engine codes (message `DONNA_<code>`). */

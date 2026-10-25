@@ -292,6 +292,11 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
      authenticated browser context shows the same record; retry and conflicting writes create no
      duplicate outcome; a different account cannot access the records; sign-up is refused;
      then repeat by hand on the owner's phone and laptop.
+  4. **Hosted allowlist proof (blocked on owner setup):** `supabase/tests/hosted_probe.sql` reports `OVERALL PASS`
+     in the synthetic project (fires the trigger directly), and optionally `npm run test:donna-live-trigger`.
+  5. Retry safety (repair of review `88c1a07`): a retry re-sends the frozen request (id, `at`, `until`); an
+     acknowledged write whose reload fails is reported as "stored, not yet shown" with recovery; loads are
+     discarded across sign-out, account change and unmount. **Done locally (mock).**
 - **Not done:** hosted verification, deployment, Africa/Cairo quiet hours (DON-04), offline queue, voice, real data.
 
 ## 3. Blocked

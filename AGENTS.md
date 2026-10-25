@@ -40,6 +40,7 @@ Run from the repository root. Node 20+ (CI uses 20; cloud sessions use 22).
 | Browser tests (desktop Chromium + mobile Arabic) | `npm run test:e2e` |
 | Donna database rules on a throwaway local Postgres (not Supabase) | `npm run test:donna-db` |
 | Donna live acceptance against a real hosted project (needs owner-supplied env; fails loudly without it) | `npm run test:donna-live` |
+| Donna allowlist trigger through the hosted Auth API (synthetic project, sign-up temporarily on) | `npm run test:donna-live-trigger` |
 
 The full local gate, in order, is:
 

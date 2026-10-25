@@ -16,7 +16,7 @@ import {
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import type { Dictionary } from "@/lib/i18n/en";
 import { DonnaSyncPanel } from "./DonnaSyncPanel";
-import { useDonna } from "./DonnaProvider";
+import { useDonna, type PreparedEvent } from "./DonnaProvider";
 
 type Copy = Dictionary["donna"];
 type Mode = "idle" | "snooze" | "cancel" | OutcomeKind;
@@ -129,7 +129,7 @@ export function DonnaInbox() {
 
 function QuestionCard({ question }: { question: OutcomeQuestion }) {
   const { dict } = useLocale();
-  const { state, clockNow, clientLabel, markTaskDone, recordOutcome, snooze, newRequestId, sync } = useDonna();
+  const { state, clockNow, clientLabel, prepare, send, sync } = useDonna();
   const copy = dict.donna;
   const offset = state.policy.utcOffsetMinutes;
   const [mode, setMode] = useState<Mode>("idle");
@@ -140,16 +140,21 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<StoreErrorCode | null>(null);
   const [pending, setPending] = useState(false);
-  // One id per submission attempt: a retry after a failure reuses it, so the
-  // database can tell a repeat of the same request from a second, conflicting one.
-  const requestId = useRef<string | null>(null);
-  const rid = () => (requestId.current ??= newRequestId());
+  // A submission is frozen on first use (id AND exact payload, including `at` and
+  // `until`). A retry with the same inputs re-sends that very object, so after an
+  // uncertain network result the database can recognise it as a duplicate. Changing
+  // any input makes a new submission with a new id.
+  const attempt = useRef<{ key: string; prepared: PreparedEvent } | null>(null);
+  const frozen = (key: string, make: () => PreparedEvent): PreparedEvent => {
+    if (attempt.current?.key !== key) attempt.current = { key, prepared: make() };
+    return attempt.current.prepared;
+  };
   const locked = pending || sync.busy;
 
   const apply = (code: StoreErrorCode | null) => {
     setError(code);
     if (code === null) {
-      requestId.current = null;
+      attempt.current = null;
       setMode("idle");
     }
   };
@@ -173,7 +178,9 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
         nextAction = { kind: nextKind, at: localToInstant(dateTime, offset), clientConfirmed: confirmed };
       }
     }
-    finish(recordOutcome(question.callId, outcome, outcome === "CANCELLED" ? "" : note, nextAction, rid()));
+    const text = outcome === "CANCELLED" ? "" : note;
+    const key = JSON.stringify(["outcome", question.callId, outcome, text, nextKind, date, dateTime, confirmed]);
+    finish(send(frozen(key, () => prepare.outcome(question.callId, outcome, text, nextAction))));
   };
 
   const reminderText =
@@ -185,7 +192,7 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
 
   const open = (next: Mode) => {
     setError(null);
-    requestId.current = null;
+    attempt.current = null;
     setMode(next);
   };
 
@@ -214,7 +221,7 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
           <button type="button" disabled={locked} className={BUTTON} onClick={() => open("snooze")}>{copy.actions.snooze}</button>
           <button type="button" disabled={locked} className={BUTTON} onClick={() => open("cancel")}>{copy.actions.cancel}</button>
           {question.taskMarkedDone ? null : (
-            <button type="button" className={`${BUTTON} text-neutral-400`} onClick={() => finish(markTaskDone(question.callId, rid()))} disabled={locked}>
+            <button type="button" className={`${BUTTON} text-neutral-400`} onClick={() => finish(send(frozen(JSON.stringify(["done", question.callId]), () => prepare.taskDone(question.callId))))} disabled={locked}>
               {copy.actions.markTaskDone}
             </button>
           )}
@@ -225,9 +232,9 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
         <div className="space-y-2">
           <p className="text-sm text-neutral-300" dir="auto">{copy.snooze.title}</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={BUTTON} disabled={locked} onClick={() => finish(snooze(question.callId, addMinutes(clockNow(), 60), rid()))}>{copy.snooze.oneHour}</button>
-            <button type="button" className={BUTTON} disabled={locked} onClick={() => finish(snooze(question.callId, addMinutes(clockNow(), 240), rid()))}>{copy.snooze.fourHours}</button>
-            <button type="button" className={BUTTON} disabled={locked} onClick={() => finish(snooze(question.callId, nextLocalMorning(clockNow(), state.policy, 9), rid()))}>{copy.snooze.tomorrow}</button>
+            <button type="button" className={BUTTON} disabled={locked} onClick={() => finish(send(frozen(JSON.stringify(["snooze", question.callId, "1h"]), () => prepare.snooze(question.callId, addMinutes(clockNow(), 60)))))}>{copy.snooze.oneHour}</button>
+            <button type="button" className={BUTTON} disabled={locked} onClick={() => finish(send(frozen(JSON.stringify(["snooze", question.callId, "4h"]), () => prepare.snooze(question.callId, addMinutes(clockNow(), 240)))))}>{copy.snooze.fourHours}</button>
+            <button type="button" className={BUTTON} disabled={locked} onClick={() => finish(send(frozen(JSON.stringify(["snooze", question.callId, "tomorrow"]), () => prepare.snooze(question.callId, nextLocalMorning(clockNow(), state.policy, 9)))))}>{copy.snooze.tomorrow}</button>
             <button type="button" className={BUTTON} onClick={() => open("idle")}>{copy.actions.back}</button>
           </div>
         </div>

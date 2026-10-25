@@ -32,7 +32,12 @@ passwords in the dashboard).
    "must be owner of relation users"), **stop and report the exact message**. Do not skip
    that statement: the dashboard sign-up switch alone is not enough. (This one statement
    is the part of the migration I could not test on a real Supabase project.)
-2. **Before creating any user**, allow-list the addresses (replace the placeholders; these stay in the database, never in the repository):
+2. **Run the probe** (Dashboard → SQL Editor → paste `supabase/tests/hosted_probe.sql` → run). Every row must say `PASS`
+   and the last row `OVERALL PASS`. `FAIL` means a protection is missing: stop and send me the table (it contains no secrets).
+   `INCONCLUSIVE` means the probe could not run a check and is **not** a pass: send me the detail column. The probe
+   exercises the allowlist trigger and the privilege model directly in the database (all its test rows are rolled back),
+   independently of the dashboard sign-up switch. It is also what I run locally against a throwaway Postgres.
+3. **Before creating any user**, allow-list the addresses (replace the placeholders; these stay in the database, never in the repository):
    ```sql
    insert into public.donna_allowed_emails (email)
    values (lower('YOUR-OWNER-EMAIL'));
@@ -88,7 +93,42 @@ Manual phone check (after a hosted URL exists, which needs a separate deployment
 sign in as A on the laptop and record an outcome; sign in as A on the phone and confirm
 the same record, and no second question for that call.
 
-## 8. Rollback
+## 8. Retry and recovery behaviour you can try by hand
+- A save keeps its request id **and its exact content** until it succeeds or you edit it. If the network drops
+  mid-save, press Save again: the database answers "duplicate" and you still get one record.
+- If the database confirms a save but the screen cannot reload, Donna says so ("confirmed and stored, but the screen
+  could not reload"), keeps the form open and offers **Reload from database**; nothing is saved twice.
+- Signing out or switching account discards anything still loading for the previous account.
+
+## 9. Prove the allowlist trigger itself (test project only)
+The SQL probe in step 3.2 is the required proof: it fires the trigger directly. The dashboard sign-up switch alone
+proves nothing about the trigger (with the switch OFF the platform refuses first). To also see the trigger refuse a
+real Auth API sign-up:
+1. In the **synthetic test project only** (never one that will hold real data): Authentication → Sign In / Providers →
+   turn **ON** "Allow new users to sign up".
+2. Run `DONNA_LIVE_SIGNUP_TEMPORARILY_ENABLED=yes npm run test:donna-live-trigger`. It tries to sign up an unlisted
+   address and requires the refusal to be something other than the platform's own `signup_disabled`, and that no account exists afterwards.
+3. Turn the switch **OFF** again right away.
+If the switch is still OFF the test fails on purpose ("proves nothing about the trigger").
+I expect a database error such as "Database error saving new user", but I have not seen the real response: report the
+status, code and message the test prints.
+
+## 10. What can only be validated on a real Supabase project
+Nothing below has been run; each is covered by the step named, and a failure of any of them is a finding, not a pass.
+| Item | Why it cannot be proven locally | Covered by |
+|---|---|---|
+| Creating a trigger on `auth.users` is permitted for the SQL Editor role | the local stub has no platform restrictions | step 3.1 (migration error), step 3.2 probe |
+| Inserting minimal rows into `auth.users` works for the probe (no other required columns or platform triggers get in the way) | local `auth.users` is a two-column stub | step 3.2 probe (an `INCONCLUSIVE` row tells me) |
+| Platform default grants on new tables and functions are fully removed by the revokes | defaults differ locally | probe privilege rows |
+| PostgREST calls: argument name `p_event`/`p_call`, the `{status}` JSON reply, and that `DONNA_*` messages reach the browser | no PostgREST locally | `npm run test:donna-live` (database contract scenarios) |
+| Row-level security under a real JWT (`auth.uid()` from a signed token) | local claims are simulated | `npm run test:donna-live` ("a different account", "signed-out client") |
+| Password sign-in, session persistence across reload, token refresh, and the session in a second browser context | real Auth service and browser storage | `npm run test:donna-live` (UI test) and the phone check |
+| Dashboard setting names and defaults (sign-up, anonymous, password length) match what I describe | labels change | your walk through section 2; tell me any difference |
+| Sign-up refusal by the trigger through the Auth API | needs the platform's Auth service | section 9 |
+| The cloud environment's network policy lets the session reach `<project-ref>.supabase.co` | policy is yours | any live run (an unreachable host shows as OFFLINE) |
+| Free-plan behaviour (pausing, limits) | commercial terms | not testable; verify at sign-up |
+
+## 11. Rollback
 Set `NEXT_PUBLIC_DONNA_SYNC` to anything other than `on` (or remove it): the app returns
 to the memory-only demo and never contacts the database. History is not deleted.
 

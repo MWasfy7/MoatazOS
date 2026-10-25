@@ -131,10 +131,16 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     ).rejects.toBeInstanceOf(DonnaStoreError);
   });
 
-  test("the server refuses sign-up for an address that is not on the allowlist", async () => {
+  test("the server refuses sign-up for an address that is not on the allowlist (dashboard switch and/or trigger)", async () => {
     const client = createClient(CONFIG.url, CONFIG.anonKey, { auth: { persistSession: false } });
     const { data, error } = await client.auth.signUp({ email: `stranger-${RUN}@example.test`, password: `Xy-${RUN}-pw-9!` });
     expect(error, "sign-up must be rejected by the server").not.toBeNull();
     expect(data.session).toBeNull();
+    // With the dashboard switch OFF this refusal is the platform's, NOT evidence about the database trigger.
+    // The trigger itself is proven by supabase/tests/hosted_probe.sql and `npm run test:donna-live-trigger`.
+    test.info().annotations.push({
+      type: "refusal source",
+      description: error?.code === "signup_disabled" ? "dashboard switch (trigger not exercised by this test)" : `${error?.code ?? "?"}: ${error?.message ?? ""}`,
+    });
   });
 });

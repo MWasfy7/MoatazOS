@@ -102,4 +102,21 @@ echo "   CREATED=$CREATED DUPLICATE=$DUP"
 ROWS=$(run_sql -At -c "select count(*) from public.donna_events where call_id='race-2'")
 [ "$ROWS" = "1" ] || { echo "FAIL: $ROWS rows for race-2"; exit 1; }
 rm -f "$OUT"
+
+echo "== hosted probe (the same file the owner runs in the Supabase SQL editor)"
+PROBE="$TESTS/hosted_probe.sql"
+run_sql -At -F '|' -f "$PROBE" >"$OUT.probe"
+cat "$OUT.probe"
+grep -q '^OVERALL|OVERALL PASS|' "$OUT.probe" || { echo "FAIL: probe did not report OVERALL PASS"; exit 1; }
+! grep -q '|FAIL|\||INCONCLUSIVE|' "$OUT.probe" || { echo "FAIL: probe has a FAIL or INCONCLUSIVE row"; exit 1; }
+
+echo "== the probe must be able to FAIL: drop the sign-up trigger and the grants it checks, expect OVERALL FAIL"
+run_sql -c "drop trigger donna_block_unlisted_signup on auth.users; grant insert on public.donna_events to authenticated;" >/dev/null
+run_sql -At -F '|' -f "$PROBE" >"$OUT.probe"
+grep -q '^OVERALL|OVERALL FAIL|' "$OUT.probe" || { echo "FAIL: probe did not detect a missing trigger"; cat "$OUT.probe"; exit 1; }
+grep -q 'sign-up trigger exists and is enabled on auth.users|FAIL|' "$OUT.probe" || { echo "FAIL: probe did not flag the missing trigger"; exit 1; }
+grep -q 'trigger refuses an unlisted address (direct insert into auth.users)|FAIL|' "$OUT.probe" || { echo "FAIL: probe did not show the unlisted insert succeeding"; exit 1; }
+grep -q 'anon and authenticated hold no write privilege.*|FAIL|' "$OUT.probe" || { echo "FAIL: probe did not flag the write grant"; exit 1; }
+echo "   probe correctly reported FAIL for each broken protection"
+rm -f "$OUT.probe"
 echo "PASS: DON-02 database tests"

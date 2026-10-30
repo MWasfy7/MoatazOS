@@ -292,3 +292,25 @@ describe("Donna sync mode (MOCK store and auth; not persistence evidence)", () =
     expect(await screen.findByTestId("donna-ack")).toHaveTextContent("أكدته قاعدة البيانات");
   });
 });
+
+describe("plan a synthetic call (phone flow; MOCK store)", () => {
+  it("plans an already-due call, Donna asks what happened, and the outcome and follow-up are recorded", async () => {
+    const user = userEvent.setup();
+    const store = createMemoryStore(DEMO_POLICY, () => NOW);
+    mount(remoteFor(store));
+    await screen.findByTestId("donna-sync-ready");
+    await user.selectOptions(screen.getByLabelText("Synthetic client"), "cl-beta");
+    await user.click(screen.getByRole("button", { name: "Plan call" }));
+    await waitFor(async () => expect((await store.load()).calls).toHaveLength(1));
+    const call = (await store.load()).calls[0]!;
+    expect(call.clientId).toBe("cl-beta");
+    expect(call.id).toMatch(/^plan-/);
+    const card = await screen.findByTestId(`donna-question-${call.id}`);
+    await fillSpoke(user, card);
+    await user.click(within(card).getByLabelText(/Internal follow-up date/));
+    await user.type(within(card).getByLabelText("Follow-up date", { exact: true }), "2026-10-28");
+    await user.click(within(card).getByRole("button", { name: "Save outcome" }));
+    await waitFor(() => expect(screen.getByTestId(`donna-next-${call.id}`)).toHaveTextContent("2026-10-28"));
+    expect(await outcomeRows(store, call.id)).toHaveLength(1);
+  });
+});

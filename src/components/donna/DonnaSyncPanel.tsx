@@ -11,7 +11,9 @@ const FIELD = "mt-1 block min-h-11 w-full rounded-md border border-neutral-700 b
 /** Says plainly which mode Donna is in, and gates everything behind sign-in when sync is on. */
 export function DonnaSyncPanel() {
   const { dict } = useLocale();
-  const { sync, state, signIn, signOut, refresh, seedSyntheticCalls } = useDonna();
+  const { sync, state, signIn, signOut, refresh, seedSyntheticCalls, planCall, clientLabel } = useDonna();
+  const [planClient, setPlanClient] = useState(state.clients[0]?.id ?? "");
+  const [planWhen, setPlanWhen] = useState("-60");
   const copy = dict.donna;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -82,6 +84,33 @@ export function DonnaSyncPanel() {
             <button type="button" disabled={sync.busy} className={BUTTON} onClick={() => void refresh()}>{copy.sync.refresh}</button>
             <button type="button" disabled={sync.busy} className={BUTTON} onClick={() => void signOut()}>{copy.sync.signOut}</button>
           </div>
+          <form
+            className="space-y-2 rounded-md border border-neutral-800 p-3"
+            data-testid="donna-plan-call"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setError(await planCall(planClient, Number(planWhen)));
+            }}
+          >
+            <h3 className="text-sm font-semibold text-neutral-100">{copy.sync.planTitle}</h3>
+            <label className="block text-sm text-neutral-300">
+              {copy.sync.planClient}
+              <select value={planClient} onChange={(e) => setPlanClient(e.target.value)} className={FIELD}>
+                {state.clients.map((c) => (
+                  <option key={c.id} value={c.id}>{`${clientLabel(c.id)} · ${c.id}`}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm text-neutral-300">
+              {copy.sync.planWhen}
+              <select value={planWhen} onChange={(e) => setPlanWhen(e.target.value)} className={FIELD}>
+                <option value="-60">{copy.sync.planAgo}</option>
+                <option value="60">{copy.sync.planSoon}</option>
+                <option value="1440">{copy.sync.planTomorrow}</option>
+              </select>
+            </label>
+            <button type="submit" disabled={sync.busy} className={BUTTON}>{copy.sync.planSubmit}</button>
+          </form>
           {state.calls.length === 0 ? (
             <div className="space-y-2">
               <p className="text-sm text-neutral-400">{copy.sync.seedHint}</p>

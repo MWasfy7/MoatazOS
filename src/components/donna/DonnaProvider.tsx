@@ -86,6 +86,8 @@ interface DonnaContextValue {
   signOut: () => Promise<void>;
   refresh: () => Promise<ActionResult>;
   seedSyntheticCalls: () => Promise<ActionResult>;
+  /** Plan one synthetic call for a synthetic client, due `dueInMinutes` from now (negative = already due). */
+  planCall: (clientId: string, dueInMinutes: number) => Promise<ActionResult>;
   clientLabel: (clientId: string) => string;
 }
 
@@ -410,6 +412,23 @@ export function DonnaProvider({ children, remote: injectedRemote, syncConfig, cl
         const loaded = await loadNow();
         if (loaded !== "STALE") setBusy(false);
         return failure ?? (loaded === "STALE" ? null : loaded);
+      },
+      planCall: async (clientId, dueInMinutes) => {
+        const r = remoteRef.current;
+        if (!r) return "SYNC_UNAVAILABLE";
+        if (!DEMO_CLIENTS.some((c) => c.id === clientId)) return "INVALID_PAYLOAD";
+        const epoch = epochRef.current;
+        setBusy(true);
+        try {
+          await r.store.upsertCall({ id: `plan-${newId().toLowerCase()}`, clientId, dueAt: addMinutes(clock(), dueInMinutes) });
+        } catch (error) {
+          if (epoch === epochRef.current) setBusy(false);
+          return error instanceof DonnaStoreError ? error.code : "UNKNOWN";
+        }
+        if (epoch !== epochRef.current) return null;
+        const loaded = await loadNow();
+        if (loaded !== "STALE") setBusy(false);
+        return loaded === "STALE" ? null : loaded;
       },
       clientLabel: (clientId) => {
         const client = state.clients.find((c) => c.id === clientId);

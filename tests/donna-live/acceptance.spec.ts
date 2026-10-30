@@ -96,6 +96,34 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     await ctx2.close();
   });
 
+  test("phone viewport: plan a synthetic call in the UI, record outcome and follow-up, survive reload", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const page = await ctx.newPage();
+    const phoneNote = `Synthetic phone note ${RUN}`;
+    await signInUi(page, A);
+    const before = new Set((await remoteA.store.load()).calls.map((c) => c.id));
+    await page.getByLabel("Synthetic client").selectOption("cl-delta");
+    await page.getByRole("button", { name: "Plan call" }).click();
+    await expect.poll(async () => (await remoteA.store.load()).calls.filter((c) => !before.has(c.id)).length).toBe(1);
+    const created = (await remoteA.store.load()).calls.filter((c) => !before.has(c.id) && c.id.startsWith("plan-"));
+    expect(created).toHaveLength(1);
+    const id = created[0]!.id;
+    const card = page.getByTestId(`donna-question-${id}`);
+    await expect(card).toBeVisible();
+    await card.getByRole("button", { name: "Spoke" }).click();
+    await card.getByLabel(/What happened/).fill(phoneNote);
+    await card.getByLabel(/Internal follow-up date/).check();
+    await card.getByLabel("Follow-up date", { exact: true }).fill(followUp);
+    await card.getByRole("button", { name: "Save outcome" }).click();
+    await expect(page.getByTestId(`donna-record-${id}`)).toContainText(phoneNote);
+    await page.reload();
+    await expect(page.getByTestId(`donna-record-${id}`)).toContainText(phoneNote);
+    await expect(page.getByTestId(`donna-next-${id}`)).toContainText(followUp);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+    expect(overflow, "no horizontal scroll on a 390px phone").toBe(false);
+    await ctx.close();
+  });
+
   test("retry and conflicting writes create no duplicate outcome", async () => {
     const at = new Date(Date.now() - 60 * 1000).toISOString();
     const conflicting = { type: "OUTCOME_RECORDED" as const, callId: UI_CALL, at, outcome: "SPOKE" as const, originalInput: NOTE, nextAction: null };

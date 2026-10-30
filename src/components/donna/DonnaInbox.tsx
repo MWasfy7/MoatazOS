@@ -28,6 +28,11 @@ type Mode = "idle" | "snooze" | "cancel" | OutcomeKind;
 const BUTTON =
   "min-h-11 rounded-md border border-neutral-700 px-4 text-sm font-medium text-neutral-100 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50";
 
+/** Adds dictated text after what is already typed, never altering the typed text itself. */
+function appendSpoken(current: string, spoken: string): string {
+  return current === "" || /\s$/.test(current) ? current + spoken : `${current} ${spoken}`;
+}
+
 function Time({ iso, offset }: { iso: string; offset: number }) {
   return <bdi dir="ltr">{formatLocal(iso, offset)}</bdi>;
 }
@@ -272,7 +277,7 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
               className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-950 p-2 text-neutral-100"
             />
           </label>
-          <VoiceButton label={copy.form.noteShort} onText={(t) => setNote((cur) => (cur.trim() ? `${cur.trim()} ${t}` : t))} />
+          <VoiceButton label={copy.form.noteShort} onText={(t) => setNote((cur) => appendSpoken(cur, t))} />
           <label className="block text-sm text-neutral-300">
             {copy.form.nextStep}
             <textarea
@@ -283,7 +288,7 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
               className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-950 p-2 text-neutral-100"
             />
           </label>
-          <VoiceButton label={copy.form.nextStepShort} onText={(t) => setNextStep((cur) => (cur.trim() ? `${cur.trim()} ${t}` : t))} />
+          <VoiceButton label={copy.form.nextStepShort} onText={(t) => setNextStep((cur) => appendSpoken(cur, t))} />
           <fieldset className="space-y-2">
             <legend className="text-sm text-neutral-300">{copy.form.nextAction}</legend>
             <label className="flex items-start gap-2 text-sm text-neutral-300">
@@ -368,11 +373,11 @@ function RecordCard({ callId, client, dueAt, record, copy, offset }: { callId: s
         {next?.kind === "INTERNAL_FOLLOW_UP" ? <>: <bdi dir="ltr">{next.date}</bdi></> : null}
         {next?.kind === "CLIENT_CONFIRMED_APPOINTMENT" ? <>: <Time iso={next.at} offset={offset} /></> : null}
       </p>
-      <p className="text-sm text-neutral-300" dir="auto">
+      <p className="whitespace-pre-wrap text-sm text-neutral-300" dir="auto">
         <span className="font-medium">{copy.record.originalInput}:</span> {parts.note.trim() === "" ? copy.record.noNote : parts.note}
       </p>
       {parts.nextStep.trim() !== "" ? (
-        <p className="text-sm text-neutral-300" data-testid={`donna-nextstep-${callId}`} dir="auto">
+        <p className="whitespace-pre-wrap text-sm text-neutral-300" data-testid={`donna-nextstep-${callId}`} dir="auto">
           <span className="font-medium">{copy.record.nextStep}:</span> {parts.nextStep}
         </p>
       ) : null}

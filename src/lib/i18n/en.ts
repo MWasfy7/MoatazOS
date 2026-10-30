@@ -28,7 +28,7 @@ export const en = {
     demoBody: "Synthetic clients and a deterministic demo clock. Everything is held in this browser tab's memory; reloading resets it.",
     notImplementedTitle: "Subsequent work — not implemented in this slice",
     notImplemented: {
-      voice: "Voice capture and spoken replies",
+      voice: "Spoken replies from Donna (voice dictation into the outcome form is available; Donna does not speak back)",
       notifications: "Closed-app notifications and any server scheduler",
       offline: "Offline queue (an offline write is refused, never silently queued)",
       realData: "Real client data (prohibited until the trial-readiness gate)",

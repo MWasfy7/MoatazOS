@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { DonnaInbox } from "@/components/donna/DonnaInbox";
@@ -8,6 +8,7 @@ import {
   deriveOutcomeFacts,
   DEMO_POLICY,
   MAX_ORIGINAL_INPUT,
+  ORIGINAL_INPUT_PREFIX,
   splitOriginalInput,
   type DonnaRemote,
 } from "@/lib/donna";
@@ -85,15 +86,40 @@ afterEach(() => {
   delete (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
 });
 
-describe("next step stored apart from the note", () => {
-  it("round-trips, strips the marker from user text, and never lets a next step stand in for the note", () => {
-    const stored = composeOriginalInput("Liked the view", "Send payment plan");
-    expect(splitOriginalInput(stored)).toEqual({ note: "Liked the view", nextStep: "Send payment plan" });
-    expect(splitOriginalInput("only a note")).toEqual({ note: "only a note", nextStep: "" });
-    expect(composeOriginalInput("note", "")).toBe("note");
-    const hostile = composeOriginalInput("a [[next-step]] b", "c [[next-step]] d");
-    expect(splitOriginalInput(hostile)).toEqual({ note: "a  b", nextStep: "c  d" });
-    // A next step with an empty note: the NOTE is still reported as unknown.
+describe("versioned note format preserves text exactly", () => {
+  const LEGACY_DELIMITER = "\n[[next-step]]\n";
+  const cases: ReadonlyArray<[string, string, string]> = [
+    ["leading and trailing whitespace", "  padded note \n", "\t next step  "],
+    ["literal marker text in both fields", "see [[next-step]] here", "do [[next-step]] later"],
+    ["the old delimiter sequence in both fields", `a${LEGACY_DELIMITER}b`, `c${LEGACY_DELIMITER}d`],
+    ["text that looks like the version prefix", `${ORIGINAL_INPUT_PREFIX}{"n":"x","s":"y"}`, "real next step"],
+    ["Arabic and emoji", "العميل مهتم 👍", "إرسال خطة الأقساط"],
+  ];
+  it.each(cases)("round-trips exactly: %s", (_name, note, nextStep) => {
+    expect(splitOriginalInput(composeOriginalInput(note, nextStep))).toEqual({ note, nextStep });
+  });
+
+  it("stores a note without a next step byte for byte, and wraps one that imitates the prefix", () => {
+    expect(composeOriginalInput("  just a note \n", "")).toBe("  just a note \n");
+    const imitation = `${ORIGINAL_INPUT_PREFIX}{"n":"x","s":"y"}`;
+    expect(splitOriginalInput(composeOriginalInput(imitation, ""))).toEqual({ note: imitation, nextStep: "" });
+  });
+
+  it("never reads a legacy note as structured, even when it contains the old delimiter", () => {
+    const legacyNotes = [
+      `Liked it${LEGACY_DELIMITER}Send plan`,
+      "[[next-step]]",
+      `${ORIGINAL_INPUT_PREFIX}not json`,
+      `${ORIGINAL_INPUT_PREFIX}{"n":1,"s":2}`,
+      `${ORIGINAL_INPUT_PREFIX}{"n":"a","s":"b","x":1}`,
+      "",
+    ];
+    for (const legacy of legacyNotes) {
+      expect(splitOriginalInput(legacy)).toEqual({ note: legacy, nextStep: "" });
+    }
+  });
+
+  it("still reports the note as unknown when only a next step was given", () => {
     const facts = deriveOutcomeFacts("SPOKE", composeOriginalInput("", "Send plan"), null);
     expect(facts.unknownFields).toContain("NOTE");
     expect(MAX_ORIGINAL_INPUT).toBe(2000);
@@ -118,6 +144,49 @@ describe("Next step field and voice input in the outcome form (MOCK)", () => {
       note: "Liked the view",
       nextStep: "Send payment plan",
     });
+  });
+
+  it("recovers the exact note and next step after save and a fresh load", async () => {
+    const user = userEvent.setup();
+    const { store, card } = await mountWithDueCall();
+    const note = "  padded [[next-step]] note ";
+    const next = " next⁣ step ";
+    await user.click(within(card).getByRole("button", { name: "Spoke" }));
+    await user.click(within(card).getByLabelText(/What happened/));
+    await user.paste(note);
+    await user.click(within(card).getByLabelText(/Next step \(/));
+    await user.paste(next);
+    await user.click(within(card).getByRole("button", { name: "Save outcome" }));
+    await waitFor(() => expect(screen.getByTestId("donna-nextstep-plan-test-1")).toBeInTheDocument());
+    const stored = (await store.load()).events.find((e) => e.type === "OUTCOME_RECORDED");
+    expect(stored && stored.type === "OUTCOME_RECORDED" && splitOriginalInput(stored.originalInput)).toEqual({ note, nextStep: next });
+    cleanup();
+    // "Reload": a brand-new provider reading the same store shows the same record.
+    let n = 100;
+    render(
+      <LocaleProvider>
+        <DonnaProvider remote={remoteFor(store)} syncConfig={ON} clock={() => NOW} newId={() => `cccccccc-0000-4000-8000-${String(++n).padStart(12, "0")}`}>
+          <DonnaInbox />
+        </DonnaProvider>
+      </LocaleProvider>,
+    );
+    const record = await screen.findByTestId("donna-record-plan-test-1");
+    expect(record.textContent).toContain(note);
+    expect(screen.getByTestId("donna-nextstep-plan-test-1").textContent).toContain(next);
+  });
+
+  it("dictation never alters text already typed", async () => {
+    installRecognizer();
+    const user = userEvent.setup();
+    const { card } = await mountWithDueCall();
+    await user.click(within(card).getByRole("button", { name: "Spoke" }));
+    await user.type(within(card).getByLabelText(/What happened/), "  typed  ");
+    await user.click(within(card).getByRole("button", { name: /Speak — what happened/ }));
+    act(() => {
+      FakeRecognition.last?.onresult?.({ results: [[{ transcript: "spoken" }]] });
+      FakeRecognition.last?.onend?.();
+    });
+    expect(within(card).getByLabelText(/What happened/)).toHaveValue("  typed  spoken");
   });
 
   it("shows the Arabic next-step label", async () => {

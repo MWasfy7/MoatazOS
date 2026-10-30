@@ -8,7 +8,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
-import { DonnaStoreError, type DonnaRemote } from "@/lib/donna";
+import { DonnaStoreError, splitOriginalInput, type DonnaRemote } from "@/lib/donna";
 import { createSupabaseRemoteFromConfig } from "@/lib/donna/remote/supabaseStore";
 import { CONTRACT_SCENARIOS } from "../helpers/donnaStoreContract";
 import { classifyAuthError, createHttpAuth } from "../helpers/donnaTriggerEvidence";
@@ -19,7 +19,10 @@ const A = { email: env("DONNA_LIVE_USER_A_EMAIL"), password: env("DONNA_LIVE_USE
 const B = { email: env("DONNA_LIVE_USER_B_EMAIL"), password: env("DONNA_LIVE_USER_B_PASSWORD") };
 const RUN = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const UI_CALL = `live-${RUN}-ui`;
-const NOTE = `Synthetic acceptance note ${RUN}`;
+// Deliberately awkward: padding and the old delimiter text must come back exactly.
+const NOTE = `  Synthetic acceptance note ${RUN} [[next-step]] `;
+const NEXT_STEP = ` Synthetic next step ${RUN}
+[[next-step]] `;
 
 async function signedIn(user: { email: string; password: string }): Promise<DonnaRemote> {
   const remote = createSupabaseRemoteFromConfig(CONFIG);
@@ -67,6 +70,7 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     await expect(card).toBeVisible();
     await card.getByRole("button", { name: "Spoke" }).click();
     await card.getByLabel(/What happened/).fill(NOTE);
+    await card.getByLabel(/Next step \(/).fill(NEXT_STEP);
     await card.getByLabel(/Internal follow-up date/).check();
     await card.getByLabel("Follow-up date", { exact: true }).fill(followUp);
     await card.getByRole("button", { name: "Save outcome" }).click();
@@ -87,11 +91,16 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     await signInUi(page2, A);
     await expect(page2.getByTestId(`donna-record-${UI_CALL}`)).toContainText(NOTE);
     await expect(page2.getByTestId(`donna-next-${UI_CALL}`)).toContainText(followUp);
+    // Exact text in the second authenticated context (textContent keeps whitespace, unlike toContainText).
+    expect(await page2.getByTestId(`donna-record-${UI_CALL}`).textContent()).toContain(NOTE);
+    expect(await page2.getByTestId(`donna-nextstep-${UI_CALL}`).textContent()).toContain(NEXT_STEP);
     await expect(page2.getByTestId(`donna-question-${UI_CALL}`)).toHaveCount(0);
 
     // Exactly one outcome row, read straight from the database.
     const outcomes = (await remoteA.store.load()).events.filter((e) => e.type === "OUTCOME_RECORDED" && e.callId === UI_CALL);
     expect(outcomes).toHaveLength(1);
+    const savedOutcome = outcomes[0];
+    expect(savedOutcome && savedOutcome.type === "OUTCOME_RECORDED" && splitOriginalInput(savedOutcome.originalInput)).toEqual({ note: NOTE, nextStep: NEXT_STEP });
     await ctx1.close();
     await ctx2.close();
   });

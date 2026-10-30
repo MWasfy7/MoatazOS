@@ -47,7 +47,9 @@ describe("Donna inbox (English)", () => {
     renderDonna();
     const status = screen.getByTestId("donna-demo-status");
     expect(status).toHaveTextContent("not implemented");
-    for (const text of ["Durable storage", "Voice capture", "Cross-device sync", "Closed-app notifications"]) {
+    expect(status).toHaveTextContent("voice dictation into the outcome form is available");
+    expect(status).not.toHaveTextContent("Voice capture");
+    for (const text of ["Durable storage", "Spoken replies from Donna", "Cross-device sync", "Closed-app notifications"]) {
       expect(status).toHaveTextContent(text);
     }
   });

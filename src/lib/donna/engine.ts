@@ -1,5 +1,4 @@
 import { isCalendarDate, isInQuietHours, localParts, parseInstant } from "./time";
-import { splitOriginalInput } from "./noteFormat";
 import type {
   ApplyResult,
   ConfirmedFact,
@@ -71,6 +70,7 @@ export function applyEvent(state: DonnaState, input: DonnaEventInput, now: strin
         at: input.at,
         outcome: input.outcome,
         originalInput: input.originalInput,
+        nextStep: input.nextStep ?? null,
         confirmedFacts,
         unknownFields,
         nextAction,
@@ -89,7 +89,7 @@ export function deriveOutcomeFacts(
   nextAction: NextAction | null,
 ): { confirmedFacts: ConfirmedFact[]; unknownFields: UnknownField[] } {
   const unknownFields: UnknownField[] = [];
-  if (splitOriginalInput(originalInput).note.trim() === "") unknownFields.push("NOTE");
+  if (originalInput.trim() === "") unknownFields.push("NOTE");
   if (nextAction === null && outcome !== "CANCELLED") unknownFields.push("NEXT_ACTION");
   const confirmedFacts: ConfirmedFact[] = [{ kind: "OUTCOME", outcome }];
   if (nextAction?.kind === "INTERNAL_FOLLOW_UP") {
@@ -169,6 +169,7 @@ function findOutcome(events: readonly StoredEvent[], callId: string): OutcomeRec
         at: e.at,
         outcome: e.outcome,
         originalInput: e.originalInput,
+        nextStep: e.nextStep,
         confirmedFacts: e.confirmedFacts,
         unknownFields: e.unknownFields,
         nextAction: e.nextAction,

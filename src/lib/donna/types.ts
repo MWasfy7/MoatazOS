@@ -56,7 +56,10 @@ export type DonnaEvent =
       readonly callId: string;
       readonly at: string;
       readonly outcome: OutcomeKind;
+      /** Exactly what the operator typed or dictated. Never trimmed, re-encoded or combined with anything else. */
       readonly originalInput: string;
+      /** The operator's own "what I will do next" text, kept apart from `originalInput`. `null` = none given. */
+      readonly nextStep: string | null;
       readonly confirmedFacts: readonly ConfirmedFact[];
       readonly unknownFields: readonly UnknownField[];
       readonly nextAction: NextAction | null;
@@ -71,6 +74,8 @@ export type DonnaEventInput =
       readonly at: string;
       readonly outcome: OutcomeKind;
       readonly originalInput: string;
+      /** Optional; omitted or `null` means no next step was given. */
+      readonly nextStep?: string | null;
       readonly nextAction: NextActionInput | null;
     };
 
@@ -109,6 +114,7 @@ export interface OutcomeRecord {
   readonly at: string;
   readonly outcome: OutcomeKind;
   readonly originalInput: string;
+  readonly nextStep: string | null;
   readonly confirmedFacts: readonly ConfirmedFact[];
   readonly unknownFields: readonly UnknownField[];
   readonly nextAction: NextAction | null;

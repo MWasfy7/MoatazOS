@@ -74,7 +74,7 @@ interface DonnaContextValue {
   resetDemo: () => void;
   /** Build a frozen submission (new id, payload fixed now). */
   prepare: {
-    outcome: (callId: string, outcome: OutcomeKind, originalInput: string, nextAction: NextActionInput | null) => PreparedEvent;
+    outcome: (callId: string, outcome: OutcomeKind, originalInput: string, nextAction: NextActionInput | null, nextStep?: string | null) => PreparedEvent;
     snooze: (callId: string, until: string) => PreparedEvent;
     taskDone: (callId: string) => PreparedEvent;
   };
@@ -348,8 +348,8 @@ export function DonnaProvider({ children, remote: injectedRemote, syncConfig, cl
         setDismissedIds([]);
       },
       prepare: {
-        outcome: (callId, outcome, originalInput, nextAction) =>
-          freezePrepared(newId(), { type: "OUTCOME_RECORDED", callId, at: clockNow(), outcome, originalInput, nextAction }),
+        outcome: (callId, outcome, originalInput, nextAction, nextStep = null) =>
+          freezePrepared(newId(), { type: "OUTCOME_RECORDED", callId, at: clockNow(), outcome, originalInput, nextStep, nextAction }),
         snooze: (callId, until) => freezePrepared(newId(), { type: "SNOOZED", callId, at: clockNow(), until }),
         taskDone: (callId) => freezePrepared(newId(), { type: "TASK_MARKED_DONE", callId, at: clockNow() }),
       },

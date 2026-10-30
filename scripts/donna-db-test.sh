@@ -12,6 +12,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MIGRATION="$ROOT/supabase/migrations/20261025000000_donna_durable_records.sql"
+MIGRATION2="$ROOT/supabase/migrations/20261030000000_donna_next_step.sql"
 TESTS="$ROOT/supabase/tests"
 PGBIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
 SCRATCH=""
@@ -46,10 +47,14 @@ run_sql() { "${PSQL[@]}" -q "$@"; }
 echo "== applying stub auth, migration, helpers"
 run_sql -f "$TESTS/stub_auth.sql" >/dev/null
 run_sql -f "$MIGRATION" >/dev/null
+run_sql -f "$MIGRATION2" >/dev/null
 run_sql -f "$TESTS/helpers.sql" >/dev/null
 
 echo "== SQL assertions"
 run_sql -At -f "$TESTS/donna.test.sql" | grep -v '^$' | tee /dev/stderr | grep -q 'SQL assertions passed'
+
+echo "== next step is its own column; original_input stays byte-for-byte"
+run_sql -At -f "$TESTS/donna_next_step.test.sql" | grep -v '^$' | tee /dev/stderr | grep -q 'next-step SQL assertions passed'
 
 echo "== concurrency: 12 parallel sessions, each recording a DIFFERENT outcome for one call"
 UID_C='33333333-3333-3333-3333-333333333333'

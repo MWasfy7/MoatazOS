@@ -4,12 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { DonnaInbox } from "@/components/donna/DonnaInbox";
 import { DonnaProvider } from "@/components/donna/DonnaProvider";
 import {
-  composeOriginalInput,
-  deriveOutcomeFacts,
   DEMO_POLICY,
-  MAX_ORIGINAL_INPUT,
-  ORIGINAL_INPUT_PREFIX,
-  splitOriginalInput,
   type DonnaRemote,
 } from "@/lib/donna";
 import { createMemoryStore } from "@/lib/donna/memoryStore";
@@ -86,43 +81,54 @@ afterEach(() => {
   delete (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
 });
 
-describe("versioned note format preserves text exactly", () => {
-  const LEGACY_DELIMITER = "\n[[next-step]]\n";
-  const cases: ReadonlyArray<[string, string, string]> = [
-    ["leading and trailing whitespace", "  padded note \n", "\t next step  "],
-    ["literal marker text in both fields", "see [[next-step]] here", "do [[next-step]] later"],
-    ["the old delimiter sequence in both fields", `a${LEGACY_DELIMITER}b`, `c${LEGACY_DELIMITER}d`],
-    ["text that looks like the version prefix", `${ORIGINAL_INPUT_PREFIX}{"n":"x","s":"y"}`, "real next step"],
-    ["Arabic and emoji", "العميل مهتم 👍", "إرسال خطة الأقساط"],
+// Codex's example of a VALID versioned-prefix value. A note that equals it must stay a plain note.
+const CODEX_LOOKALIKE = '\u2063donna-v1\u2063{"n":"x","s":"y"}';
+
+async function mountWithStoredOutcome(originalInput: string, nextStep: string | null) {
+  const store = createMemoryStore(DEMO_POLICY, () => NOW);
+  await store.upsertCall({ id: "plan-test-1", clientId: "cl-alpha", dueAt: "2026-10-26T10:00:00.000Z" });
+  await store.appendEvent("dddddddd-0000-4000-8000-000000000001", {
+    type: "OUTCOME_RECORDED", callId: "plan-test-1", at: NOW, outcome: "SPOKE", originalInput, nextStep, nextAction: null,
+  });
+  render(
+    <LocaleProvider>
+      <DonnaProvider remote={remoteFor(store)} syncConfig={ON} clock={() => NOW} newId={() => "eeeeeeee-0000-4000-8000-000000000001"}>
+        <DonnaInbox />
+      </DonnaProvider>
+    </LocaleProvider>,
+  );
+  return store;
+}
+
+describe("original_input is never reinterpreted (Next step is a separate field)", () => {
+  const legacyNotes: ReadonlyArray<[string, string]> = [
+    ["the valid versioned-prefix example from review", CODEX_LOOKALIKE],
+    ["the old delimiter sequence", "Liked it\n[[next-step]]\nSend plan"],
+    ["leading and trailing whitespace", "  padded note \n"],
+    ["Arabic and emoji", "العميل مهتم 👍"],
   ];
-  it.each(cases)("round-trips exactly: %s", (_name, note, nextStep) => {
-    expect(splitOriginalInput(composeOriginalInput(note, nextStep))).toEqual({ note, nextStep });
+
+  it.each(legacyNotes)("a legacy note stays exactly a note, with no next step: %s", async (_name, legacy) => {
+    const store = await mountWithStoredOutcome(legacy, null);
+    const record = await screen.findByTestId("donna-record-plan-test-1");
+    expect(record.textContent).toContain(legacy);
+    expect(screen.queryByTestId("donna-nextstep-plan-test-1")).not.toBeInTheDocument();
+    const stored = (await store.load()).events.find((e) => e.type === "OUTCOME_RECORDED");
+    expect(stored && stored.type === "OUTCOME_RECORDED" && [stored.originalInput, stored.nextStep]).toEqual([legacy, null]);
   });
 
-  it("stores a note without a next step byte for byte, and wraps one that imitates the prefix", () => {
-    expect(composeOriginalInput("  just a note \n", "")).toBe("  just a note \n");
-    const imitation = `${ORIGINAL_INPUT_PREFIX}{"n":"x","s":"y"}`;
-    expect(splitOriginalInput(composeOriginalInput(imitation, ""))).toEqual({ note: imitation, nextStep: "" });
+  it("keeps a lookalike note and a real next step apart", async () => {
+    await mountWithStoredOutcome(CODEX_LOOKALIKE, "Send the payment plan");
+    const record = await screen.findByTestId("donna-record-plan-test-1");
+    expect(record.textContent).toContain(CODEX_LOOKALIKE);
+    expect(screen.getByTestId("donna-nextstep-plan-test-1").textContent).toContain("Send the payment plan");
   });
 
-  it("never reads a legacy note as structured, even when it contains the old delimiter", () => {
-    const legacyNotes = [
-      `Liked it${LEGACY_DELIMITER}Send plan`,
-      "[[next-step]]",
-      `${ORIGINAL_INPUT_PREFIX}not json`,
-      `${ORIGINAL_INPUT_PREFIX}{"n":1,"s":2}`,
-      `${ORIGINAL_INPUT_PREFIX}{"n":"a","s":"b","x":1}`,
-      "",
-    ];
-    for (const legacy of legacyNotes) {
-      expect(splitOriginalInput(legacy)).toEqual({ note: legacy, nextStep: "" });
-    }
-  });
-
-  it("still reports the note as unknown when only a next step was given", () => {
-    const facts = deriveOutcomeFacts("SPOKE", composeOriginalInput("", "Send plan"), null);
-    expect(facts.unknownFields).toContain("NOTE");
-    expect(MAX_ORIGINAL_INPUT).toBe(2000);
+  it("still reports the note as unknown when only a next step was given", async () => {
+    await mountWithStoredOutcome("", "Send plan");
+    const record = await screen.findByTestId("donna-record-plan-test-1");
+    expect(record).toHaveTextContent("Send plan");
+    expect(record).toHaveTextContent("(no note)");
   });
 });
 
@@ -140,10 +146,10 @@ describe("Next step field and voice input in the outcome form (MOCK)", () => {
     expect(screen.getByTestId("donna-record-plan-test-1")).toHaveTextContent("Liked the view");
     expect(screen.getByTestId("donna-next-plan-test-1")).toHaveTextContent("2026-10-28");
     const stored = (await store.load()).events.find((e) => e.type === "OUTCOME_RECORDED");
-    expect(stored && stored.type === "OUTCOME_RECORDED" && splitOriginalInput(stored.originalInput)).toEqual({
-      note: "Liked the view",
-      nextStep: "Send payment plan",
-    });
+    expect(stored && stored.type === "OUTCOME_RECORDED" && [stored.originalInput, stored.nextStep]).toEqual([
+      "Liked the view",
+      "Send payment plan",
+    ]);
   });
 
   it("recovers the exact note and next step after save and a fresh load", async () => {
@@ -159,7 +165,7 @@ describe("Next step field and voice input in the outcome form (MOCK)", () => {
     await user.click(within(card).getByRole("button", { name: "Save outcome" }));
     await waitFor(() => expect(screen.getByTestId("donna-nextstep-plan-test-1")).toBeInTheDocument());
     const stored = (await store.load()).events.find((e) => e.type === "OUTCOME_RECORDED");
-    expect(stored && stored.type === "OUTCOME_RECORDED" && splitOriginalInput(stored.originalInput)).toEqual({ note, nextStep: next });
+    expect(stored && stored.type === "OUTCOME_RECORDED" && [stored.originalInput, stored.nextStep]).toEqual([note, next]);
     cleanup();
     // "Reload": a brand-new provider reading the same store shows the same record.
     let n = 100;

@@ -63,6 +63,7 @@ export const RPC_EVENT_KEYS = [
   "follow_up_date",
   "appointment_at",
   "client_confirmed",
+  "next_step",
 ] as const;
 
 export const RPC_CALL_KEYS = ["id", "client_id", "due_at"] as const;
@@ -77,6 +78,7 @@ export function toRpcEvent(eventId: string, event: DonnaEventInput): Record<stri
       return { ...base, until: event.until };
     case "OUTCOME_RECORDED": {
       const out: Record<string, unknown> = { ...base, outcome: event.outcome, original_input: event.originalInput };
+      if (event.nextStep != null) out.next_step = event.nextStep;
       if (event.nextAction?.kind === "INTERNAL_FOLLOW_UP") {
         out.next_action_kind = "INTERNAL_FOLLOW_UP";
         out.follow_up_date = event.nextAction.date;
@@ -125,6 +127,7 @@ interface EventRow {
   until: string | null;
   outcome: string | null;
   original_input: string | null;
+  next_step: string | null;
   next_action_kind: string | null;
   follow_up_date: string | null;
   appointment_at: string | null;
@@ -151,7 +154,7 @@ export function fromEventRow(row: EventRow): StoredEvent {
       }
       const originalInput = row.original_input ?? "";
       const { confirmedFacts, unknownFields } = deriveOutcomeFacts(outcome, originalInput, nextAction);
-      return { ...base, type: "OUTCOME_RECORDED", outcome, originalInput, confirmedFacts, unknownFields, nextAction };
+      return { ...base, type: "OUTCOME_RECORDED", outcome, originalInput, nextStep: row.next_step ?? null, confirmedFacts, unknownFields, nextAction };
     }
     default:
       throw new DonnaStoreError("UNKNOWN");
@@ -198,7 +201,7 @@ export function createSupabaseRemote(client: SupabaseLike): DonnaRemote {
           fetchAll("donna_calls", "id, client_id, due_at", "due_at"),
           fetchAll(
             "donna_events",
-            "seq, call_id, type, at, until, outcome, original_input, next_action_kind, follow_up_date, appointment_at",
+            "seq, call_id, type, at, until, outcome, original_input, next_step, next_action_kind, follow_up_date, appointment_at",
             "seq",
           ),
         ]);

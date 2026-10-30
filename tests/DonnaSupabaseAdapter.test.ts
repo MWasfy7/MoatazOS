@@ -15,10 +15,16 @@ import {
 
 // MOCK SDK client: these tests check payload shapes, error mapping and the
 // "no acknowledgement, no success" rule. They do not talk to any database.
-const MIGRATION = fs.readFileSync(path.resolve(__dirname, "../supabase/migrations/20261025000000_donna_durable_records.sql"), "utf8");
+const MIGRATION_DIR = path.resolve(__dirname, "../supabase/migrations");
+const MIGRATION_FILES = fs.readdirSync(MIGRATION_DIR).filter((f) => f.endsWith(".sql")).sort();
+// All migrations in order: the error-code scan covers every one, key lists come from the LATEST definition.
+const MIGRATION = MIGRATION_FILES.map((f) => fs.readFileSync(path.join(MIGRATION_DIR, f), "utf8")).join("\n");
 
 function sqlKeyList(functionName: string, which: 0 | 1): string[] {
-  const body = MIGRATION.slice(MIGRATION.indexOf(`create function public.${functionName}`));
+  const starts = [...MIGRATION.matchAll(new RegExp(`create (?:or replace )?function public\\.${functionName}\\b`, "g"))];
+  const last = starts[starts.length - 1];
+  if (!last) throw new Error(`${functionName} not found in the migrations`);
+  const body = MIGRATION.slice(last.index);
   const match = /donna_require_keys\(\s*(?:p_event|p_call),\s*array\[([^\]]*)\],\s*array\[([^\]]*)\]/.exec(body);
   if (!match) throw new Error("require_keys call not found");
   return [...(match[which + 1] ?? "").matchAll(/'([a-z_]+)'/g)].map((m) => m[1] as string);
@@ -44,6 +50,8 @@ function fakeClient(over: Partial<SupabaseLike> = {}, calls: Array<{ fn: string;
 describe("Donna Supabase adapter (MOCK SDK)", () => {
   it("sends exactly the keys the SQL function accepts (drift guard against the migration)", () => {
     expect([...RPC_EVENT_KEYS].sort()).toEqual(sqlKeyList("donna_record_event", 0).sort());
+    expect(MIGRATION_FILES).toContain("20261030000000_donna_next_step.sql");
+    expect(sqlKeyList("donna_record_event", 0)).toContain("next_step");
     expect(sqlKeyList("donna_record_event", 1).sort()).toEqual(["at", "call_id", "event_id", "type"]);
     expect([...RPC_CALL_KEYS].sort()).toEqual(sqlKeyList("donna_upsert_call", 0).sort());
   });
@@ -65,6 +73,7 @@ describe("Donna Supabase adapter (MOCK SDK)", () => {
     expect(payloads[5]).toMatchObject({ next_action_kind: "CLIENT_CONFIRMED_APPOINTMENT", client_confirmed: true });
     expect(payloads[5]).not.toHaveProperty("follow_up_date");
     expect(payloads[0]).not.toHaveProperty("owner_id");
+    expect(payloads[3]).not.toHaveProperty("next_step");
     expect(toRpcCall({ id: "c", clientId: "cl-a", dueAt: at })).toEqual({ id: "c", client_id: "cl-a", due_at: at });
   });
 
@@ -92,18 +101,40 @@ describe("Donna Supabase adapter (MOCK SDK)", () => {
     }
   });
 
+  it("sends next_step as its own key and original_input untouched; omits next_step when none was given", () => {
+    const id = "00000000-0000-4000-8000-000000000001";
+    const at = "2026-10-26T10:00:00.000Z";
+    const note = "  padded [[next-step]] \n";
+    const step = " do this \n";
+    const withStep = toRpcEvent(id, { type: "OUTCOME_RECORDED", callId: "c", at, outcome: "SPOKE", originalInput: note, nextStep: step, nextAction: null });
+    expect(withStep).toMatchObject({ original_input: note, next_step: step });
+    expect(toRpcEvent(id, { type: "OUTCOME_RECORDED", callId: "c", at, outcome: "SPOKE", originalInput: note, nextStep: null, nextAction: null })).not.toHaveProperty("next_step");
+    expect(toRpcEvent(id, { type: "OUTCOME_RECORDED", callId: "c", at, outcome: "SPOKE", originalInput: note, nextAction: null })).not.toHaveProperty("next_step");
+  });
+
+  it("a stored row with no next_step (written before the migration) reads back as no next step, note untouched", () => {
+    const legacy = '\u2063donna-v1\u2063{"n":"x","s":"y"}';
+    const event = fromEventRow({
+      seq: 1, call_id: "c", type: "OUTCOME_RECORDED", at: "2026-10-26T10:00:00Z", until: null,
+      outcome: "SPOKE", original_input: legacy, next_step: null, next_action_kind: null, follow_up_date: null, appointment_at: null,
+    });
+    expect(event).toMatchObject({ originalInput: legacy, nextStep: null });
+  });
+
   it("converts database rows (PostgREST formats) into stored events with derived facts", () => {
     const outcome = fromEventRow({
       seq: 7, call_id: "c", type: "OUTCOME_RECORDED", at: "2026-10-26T10:00:00+00:00", until: null,
-      outcome: "SPOKE", original_input: "n", next_action_kind: "INTERNAL_FOLLOW_UP", follow_up_date: "2026-10-28", appointment_at: null,
+      outcome: "SPOKE", original_input: "n", next_step: "Send plan", next_action_kind: "INTERNAL_FOLLOW_UP", follow_up_date: "2026-10-28", appointment_at: null,
     });
     expect(outcome).toMatchObject({
       seq: 7, type: "OUTCOME_RECORDED", at: "2026-10-26T10:00:00.000Z",
+      originalInput: "n",
+      nextStep: "Send plan",
       nextAction: { kind: "INTERNAL_FOLLOW_UP", date: "2026-10-28" },
       confirmedFacts: [{ kind: "OUTCOME", outcome: "SPOKE" }, { kind: "INTERNAL_FOLLOW_UP_DATE", date: "2026-10-28" }],
       unknownFields: [],
     });
-    expect(() => fromEventRow({ seq: 1, call_id: "c", type: "BOGUS", at: "2026-10-26T10:00:00Z", until: null, outcome: null, original_input: null, next_action_kind: null, follow_up_date: null, appointment_at: null })).toThrow(DonnaStoreError);
+    expect(() => fromEventRow({ seq: 1, call_id: "c", type: "BOGUS", at: "2026-10-26T10:00:00Z", until: null, outcome: null, original_input: null, next_step: null, next_action_kind: null, follow_up_date: null, appointment_at: null })).toThrow(DonnaStoreError);
   });
 
   it("reports success only on an explicit CREATED/DUPLICATE acknowledgement", async () => {

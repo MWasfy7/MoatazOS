@@ -8,7 +8,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
-import { DonnaStoreError, splitOriginalInput, type DonnaRemote } from "@/lib/donna";
+import { DonnaStoreError, type DonnaRemote } from "@/lib/donna";
 import { createSupabaseRemoteFromConfig } from "@/lib/donna/remote/supabaseStore";
 import { CONTRACT_SCENARIOS } from "../helpers/donnaStoreContract";
 import { classifyAuthError, createHttpAuth } from "../helpers/donnaTriggerEvidence";
@@ -100,9 +100,26 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     const outcomes = (await remoteA.store.load()).events.filter((e) => e.type === "OUTCOME_RECORDED" && e.callId === UI_CALL);
     expect(outcomes).toHaveLength(1);
     const savedOutcome = outcomes[0];
-    expect(savedOutcome && savedOutcome.type === "OUTCOME_RECORDED" && splitOriginalInput(savedOutcome.originalInput)).toEqual({ note: NOTE, nextStep: NEXT_STEP });
+    expect(savedOutcome && savedOutcome.type === "OUTCOME_RECORDED" && [savedOutcome.originalInput, savedOutcome.nextStep]).toEqual([NOTE, NEXT_STEP]);
     await ctx1.close();
     await ctx2.close();
+  });
+
+  test("a note equal to the old versioned-prefix example stays a plain note with no next step (second context)", async ({ browser }) => {
+    const lookalike = '\u2063donna-v1\u2063{"n":"x","s":"y"}';
+    const callId = `live-${RUN}-lookalike`;
+    await remoteA.store.upsertCall({ id: callId, clientId: "cl-beta", dueAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() });
+    await remoteA.store.appendEvent(crypto.randomUUID(), {
+      type: "OUTCOME_RECORDED", callId, at: new Date(Date.now() - 60 * 1000).toISOString(), outcome: "SPOKE", originalInput: lookalike, nextAction: null,
+    });
+    const saved = (await remoteA.store.load()).events.find((e) => e.type === "OUTCOME_RECORDED" && e.callId === callId);
+    expect(saved && saved.type === "OUTCOME_RECORDED" && [saved.originalInput, saved.nextStep]).toEqual([lookalike, null]);
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await signInUi(page, A);
+    expect(await page.getByTestId(`donna-record-${callId}`).textContent()).toContain(lookalike);
+    await expect(page.getByTestId(`donna-nextstep-${callId}`)).toHaveCount(0);
+    await ctx.close();
   });
 
   test("phone viewport: plan a synthetic call in the UI, record outcome and follow-up, survive reload", async ({ browser }) => {

@@ -3,7 +3,6 @@ export * from "./time";
 export * from "./engine";
 export * from "./fixtures";
 export * from "./store";
-export * from "./noteFormat";
 
 /**
  * Donna feature flag (navigation and app-open banner). A compile-time

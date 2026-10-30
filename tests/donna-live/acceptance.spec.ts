@@ -68,7 +68,7 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     await card.getByRole("button", { name: "Spoke" }).click();
     await card.getByLabel(/What happened/).fill(NOTE);
     await card.getByLabel(/Internal follow-up date/).check();
-    await card.getByLabel("Follow-up date").fill(followUp);
+    await card.getByLabel("Follow-up date", { exact: true }).fill(followUp);
     await card.getByRole("button", { name: "Save outcome" }).click();
     await expect(page1.getByTestId("donna-ack")).toContainText("confirmed by the database");
     const record1 = page1.getByTestId(`donna-record-${UI_CALL}`);

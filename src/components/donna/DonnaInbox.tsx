@@ -12,10 +12,14 @@ import {
   type OutcomeQuestion,
   type OutcomeRecord,
   type StoreErrorCode,
+  composeOriginalInput,
+  splitOriginalInput,
+  MAX_ORIGINAL_INPUT,
 } from "@/lib/donna";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import type { Dictionary } from "@/lib/i18n/en";
 import { DonnaSyncPanel } from "./DonnaSyncPanel";
+import { VoiceButton } from "./VoiceButton";
 import { useDonna, type PreparedEvent } from "./DonnaProvider";
 
 type Copy = Dictionary["donna"];
@@ -134,6 +138,7 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
   const offset = state.policy.utcOffsetMinutes;
   const [mode, setMode] = useState<Mode>("idle");
   const [note, setNote] = useState("");
+  const [nextStep, setNextStep] = useState("");
   const [nextKind, setNextKind] = useState<"none" | NonNullable<NextActionInput>["kind"]>("none");
   const [date, setDate] = useState("");
   const [dateTime, setDateTime] = useState("");
@@ -178,7 +183,8 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
         nextAction = { kind: nextKind, at: localToInstant(dateTime, offset), clientConfirmed: confirmed };
       }
     }
-    const text = outcome === "CANCELLED" ? "" : note;
+    const text = outcome === "CANCELLED" ? "" : composeOriginalInput(note, nextStep);
+    if (text.length > MAX_ORIGINAL_INPUT) return setError("INVALID_PAYLOAD");
     const key = JSON.stringify(["outcome", question.callId, outcome, text, nextKind, date, dateTime, confirmed]);
     finish(send(frozen(key, () => prepare.outcome(question.callId, outcome, text, nextAction))));
   };
@@ -266,6 +272,18 @@ function QuestionCard({ question }: { question: OutcomeQuestion }) {
               className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-950 p-2 text-neutral-100"
             />
           </label>
+          <VoiceButton label={copy.form.noteShort} onText={(t) => setNote((cur) => (cur.trim() ? `${cur.trim()} ${t}` : t))} />
+          <label className="block text-sm text-neutral-300">
+            {copy.form.nextStep}
+            <textarea
+              value={nextStep}
+              onChange={(e) => setNextStep(e.target.value)}
+              dir="auto"
+              rows={2}
+              className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-950 p-2 text-neutral-100"
+            />
+          </label>
+          <VoiceButton label={copy.form.nextStepShort} onText={(t) => setNextStep((cur) => (cur.trim() ? `${cur.trim()} ${t}` : t))} />
           <fieldset className="space-y-2">
             <legend className="text-sm text-neutral-300">{copy.form.nextAction}</legend>
             <label className="flex items-start gap-2 text-sm text-neutral-300">
@@ -336,6 +354,7 @@ function factText(fact: ConfirmedFact, copy: Copy, offset: number): string {
 
 function RecordCard({ callId, client, dueAt, record, copy, offset }: { callId: string; client: string; dueAt: string; record: OutcomeRecord; copy: Copy; offset: number }) {
   const next = record.nextAction;
+  const parts = splitOriginalInput(record.originalInput);
   return (
     <article className="space-y-2 rounded-xl border border-neutral-800 p-4" data-testid={`donna-record-${callId}`}>
       <h3 className="text-base font-semibold text-neutral-50" dir="auto">
@@ -350,8 +369,13 @@ function RecordCard({ callId, client, dueAt, record, copy, offset }: { callId: s
         {next?.kind === "CLIENT_CONFIRMED_APPOINTMENT" ? <>: <Time iso={next.at} offset={offset} /></> : null}
       </p>
       <p className="text-sm text-neutral-300" dir="auto">
-        <span className="font-medium">{copy.record.originalInput}:</span> {record.originalInput.trim() === "" ? copy.record.noNote : record.originalInput}
+        <span className="font-medium">{copy.record.originalInput}:</span> {parts.note.trim() === "" ? copy.record.noNote : parts.note}
       </p>
+      {parts.nextStep.trim() !== "" ? (
+        <p className="text-sm text-neutral-300" data-testid={`donna-nextstep-${callId}`} dir="auto">
+          <span className="font-medium">{copy.record.nextStep}:</span> {parts.nextStep}
+        </p>
+      ) : null}
       <div className="text-xs text-neutral-400" dir="auto">
         <p className="font-medium">{copy.record.confirmedFacts}</p>
         <ul className="list-disc ps-5">

@@ -119,6 +119,9 @@ export const en = {
     },
     form: {
       note: "What happened? (your own words)",
+      noteShort: "what happened",
+      nextStep: "Next step (what you will do next, e.g. send the payment plan)",
+      nextStepShort: "next step",
       nextAction: "Next action",
       none: "None / not decided yet",
       internal: "Internal follow-up date (my own reminder; the client has not agreed)",
@@ -126,6 +129,17 @@ export const en = {
       date: "Follow-up date",
       dateTime: "Appointment date and time",
       clientConfirmed: "The client explicitly confirmed this time",
+    },
+    voice: {
+      start: "Speak",
+      stop: "Stop listening",
+      listening: "Listening…",
+      privacy: "Voice uses your browser's speech recognition, which may send audio to the browser maker. Synthetic test data only. You can always type instead.",
+      unsupported: "Voice input is not available in this browser. Please type instead.",
+      denied: "Microphone access was blocked. Allow the microphone in your browser settings, or type instead.",
+      no_speech: "Couldn't catch that. Type your notes or tap Speak to try again.",
+      network: "Voice needs a connection and it dropped. Type your notes instead, or try again.",
+      failed: "Voice input failed. Type your notes instead, or try again.",
     },
     outcomes: {
       SPOKE: "Spoke with the client",
@@ -140,6 +154,7 @@ export const en = {
     },
     record: {
       originalInput: "Original input",
+      nextStep: "Next step",
       confirmedFacts: "Confirmed facts",
       unknown: "Unknown",
       noNote: "(no note)",

@@ -100,6 +100,7 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const page = await ctx.newPage();
     const phoneNote = `Synthetic phone note ${RUN}`;
+    const phoneNext = `Synthetic next step ${RUN}`;
     await signInUi(page, A);
     const before = new Set((await remoteA.store.load()).calls.map((c) => c.id));
     await page.getByLabel("Synthetic client").selectOption("cl-delta");
@@ -112,12 +113,15 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     await expect(card).toBeVisible();
     await card.getByRole("button", { name: "Spoke" }).click();
     await card.getByLabel(/What happened/).fill(phoneNote);
+    await card.getByLabel(/Next step \(/).fill(phoneNext);
     await card.getByLabel(/Internal follow-up date/).check();
     await card.getByLabel("Follow-up date", { exact: true }).fill(followUp);
     await card.getByRole("button", { name: "Save outcome" }).click();
     await expect(page.getByTestId(`donna-record-${id}`)).toContainText(phoneNote);
+    await expect(page.getByTestId(`donna-nextstep-${id}`)).toContainText(phoneNext);
     await page.reload();
     await expect(page.getByTestId(`donna-record-${id}`)).toContainText(phoneNote);
+    await expect(page.getByTestId(`donna-nextstep-${id}`)).toContainText(phoneNext);
     await expect(page.getByTestId(`donna-next-${id}`)).toContainText(followUp);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow, "no horizontal scroll on a 390px phone").toBe(false);

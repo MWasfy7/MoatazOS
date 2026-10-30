@@ -1,4 +1,5 @@
 import { isCalendarDate, isInQuietHours, localParts, parseInstant } from "./time";
+import { splitOriginalInput } from "./noteFormat";
 import type {
   ApplyResult,
   ConfirmedFact,
@@ -88,7 +89,7 @@ export function deriveOutcomeFacts(
   nextAction: NextAction | null,
 ): { confirmedFacts: ConfirmedFact[]; unknownFields: UnknownField[] } {
   const unknownFields: UnknownField[] = [];
-  if (originalInput.trim() === "") unknownFields.push("NOTE");
+  if (splitOriginalInput(originalInput).note.trim() === "") unknownFields.push("NOTE");
   if (nextAction === null && outcome !== "CANCELLED") unknownFields.push("NEXT_ACTION");
   const confirmedFacts: ConfirmedFact[] = [{ kind: "OUTCOME", outcome }];
   if (nextAction?.kind === "INTERNAL_FOLLOW_UP") {

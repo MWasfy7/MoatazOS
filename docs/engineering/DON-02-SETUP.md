@@ -32,12 +32,34 @@ passwords in the dashboard).
    "must be owner of relation users"), **stop and report the exact message**. Do not skip
    that statement: the dashboard sign-up switch alone is not enough. (This one statement
    is the part of the migration I could not test on a real Supabase project.)
-2. **Run the probe** (Dashboard → SQL Editor → paste `supabase/tests/hosted_probe.sql` → run). Every row must say `PASS`
+2. **Next-step migration.** Immediately after step 1 and **before the probe, before creating users, and before any
+   phone test or live acceptance run**, paste the whole file `supabase/migrations/20261030000000_donna_next_step.sql` and run it
+   **once**. It stores the operator's "Next step" in its own column (`donna_events.next_step`) and updates
+   `donna_record_event` to accept it, so `original_input` stays exactly what was typed.
+   > **WARNING: run this file exactly once.** It is wrapped in a transaction, but it is not idempotent. Running it a second time
+   > fails on its first statement with `42701: column "next_step" of relation "donna_events" already exists`. That failure
+   > changes nothing; it only means the migration was already applied. Do not "fix" it by editing the file or dropping the column.
+   >
+   > An app build from this branch (or any later one) reads `next_step` on every load. Against a project that has not had this
+   > file applied, **every load fails** (`DonnaStoreError: UNKNOWN`) and the live acceptance cannot run. Apply it first.
+
+   Not sure whether it was already applied? Run this read-only query. `1, 1, true` means fully applied (do **not** run the file again);
+   `0, 1, false` means it has not been applied yet:
+   ```sql
+   select
+     (select count(*) from information_schema.columns
+       where table_schema = 'public' and table_name = 'donna_events' and column_name = 'next_step') as next_step_column,
+     (select count(*) from pg_proc where proname = 'donna_compare_existing') as compare_overloads,
+     (select pg_get_constraintdef(oid) like '%next_step%' from pg_constraint
+       where conname = 'donna_events_outcome_shape') as constraint_has_next_step;
+   ```
+   Any other result is a partial or unknown state: stop and send me the three values (they contain no secrets).
+3. **Run the probe** (Dashboard → SQL Editor → paste `supabase/tests/hosted_probe.sql` → run). Every row must say `PASS`
    and the last row `OVERALL PASS`. `FAIL` means a protection is missing: stop and send me the table (it contains no secrets).
    `INCONCLUSIVE` means the probe could not run a check and is **not** a pass: send me the detail column. The probe
    exercises the allowlist trigger and the privilege model directly in the database (all its test rows are rolled back),
    independently of the dashboard sign-up switch. It is also what I run locally against a throwaway Postgres.
-3. **Before creating any user**, allow-list the addresses (replace the placeholders; these stay in the database, never in the repository):
+4. **Before creating any user**, allow-list the addresses (replace the placeholders; these stay in the database, never in the repository):
    ```sql
    insert into public.donna_allowed_emails (email)
    values (lower('YOUR-OWNER-EMAIL'));
@@ -83,6 +105,7 @@ Where:
 Node: the live harness needs **Node 22+** (the Supabase client builds a realtime client that needs a global `WebSocket`);
 on Node 20 set `NODE_OPTIONS=--experimental-websocket`. The harness stops with a clear message if neither holds.
 (The offline suite, including CI, runs on Node 20 and never constructs that client.)
+Both migrations in step 3 (steps 3.1 and 3.2) must be applied first; otherwise every load fails.
 ```bash
 npm ci
 set -a; . ./.env.donna-live.local; set +a      # or use the cloud environment variables
@@ -94,7 +117,8 @@ retry and conflict writes, that account B sees nothing of A's records, that a si
 client is refused, and that the server refuses sign-up. It exits non-zero and lists the
 missing variable names if any are absent. Synthetic `live-*` rows remain by design.
 
-Manual phone check (after a hosted URL exists, which needs a separate deployment decision):
+Manual phone check (**only after** the next-step migration, step 3.2, is applied; a hosted URL needs a separate deployment decision,
+or use the local-network dev server on the same Wi-Fi):
 sign in as A on the laptop and record an outcome; sign in as A on the phone and confirm
 the same record, and no second question for that call.
 
@@ -106,7 +130,7 @@ the same record, and no second question for that call.
 - Signing out or switching account discards anything still loading for the previous account.
 
 ## 9. Prove the allowlist trigger itself (test project only)
-The SQL probe in step 3.2 is the required proof: it fires the trigger directly. Through the Auth API, a refused
+The SQL probe in step 3.3 is the required proof: it fires the trigger directly. Through the Auth API, a refused
 sign-up is **not** proof of the cause: a generic 500 / `unexpected_failure` / "Internal server error", a rate limit,
 a network fault and an email problem all look like a refusal, and so would any server fault. Two kinds of evidence are
 therefore kept apart, and only the second can attribute the cause:
@@ -143,14 +167,16 @@ I have not seen the real responses or the real log format; send me the printed l
 Nothing below has been run; each is covered by the step named, and a failure of any of them is a finding, not a pass.
 | Item | Why it cannot be proven locally | Covered by |
 |---|---|---|
-| Creating a trigger on `auth.users` is permitted for the SQL Editor role | the local stub has no platform restrictions | step 3.1 (migration error), step 3.2 probe |
-| Inserting minimal rows into `auth.users` works for the probe (no other required columns or platform triggers get in the way) | local `auth.users` is a two-column stub | step 3.2 probe (an `INCONCLUSIVE` row tells me) |
+| Creating a trigger on `auth.users` is permitted for the SQL Editor role | the local stub has no platform restrictions | step 3.1 (migration error), step 3.3 probe |
+| Inserting minimal rows into `auth.users` works for the probe (no other required columns or platform triggers get in the way) | local `auth.users` is a two-column stub | step 3.3 probe (an `INCONCLUSIVE` row tells me) |
 | Platform default grants on new tables and functions are fully removed by the revokes | defaults differ locally | probe privilege rows |
 | PostgREST calls: argument name `p_event`/`p_call`, the `{status}` JSON reply, and that `DONNA_*` messages reach the browser | no PostgREST locally | `npm run test:donna-live` (database contract scenarios) |
 | Row-level security under a real JWT (`auth.uid()` from a signed token) | local claims are simulated | `npm run test:donna-live` ("a different account", "signed-out client") |
 | Password sign-in, session persistence across reload, token refresh, and the session in a second browser context | real Auth service and browser storage | `npm run test:donna-live` (UI test) and the phone check |
 | Dashboard setting names and defaults (sign-up, anonymous, password length) match what I describe | labels change | your walk through section 2; tell me any difference |
 | Sign-up refusal by the trigger through the Auth API (API observations, phase 1) and the Postgres-log attribution (phase 2). The real response body for a refusal (I expect a 500, possibly "Database error saving new user", possibly a generic message; either way it is not attributable on its own; the pinned SDK hides 500 bodies, so phase 1 reads raw HTTP) and the real log export format | needs the platform's Auth service and logs | section 9 |
+| Next-step migration on the real project: the `42701` error on a second run, the column, the replaced `donna_record_event` and the extended check constraint | the local run used an in-memory Postgres (PGlite), not Supabase | step 3.2 read-only query, then `npm run test:donna-live` |
+| Voice dictation (browser speech recognition, microphone permission, Arabic `ar-EG`) on a real phone; the browser may send audio to its maker's speech service | tests use a mocked recognizer | the manual phone check |
 | The cloud environment's network policy lets the session reach `<project-ref>.supabase.co` | policy is yours | any live run (an unreachable host shows as OFFLINE) |
 | Free-plan behaviour (pausing, limits) | commercial terms | not testable; verify at sign-up |
 
@@ -160,5 +186,6 @@ to the memory-only demo and never contacts the database. History is not deleted.
 
 ## What this does NOT cover (each needs its own approval)
 Paid plan or backups, deployment, custom email/SMTP, passkeys or MFA, real client data
-(requires the G6 trial-readiness gate and a private repository decision), voice, and
+(requires the G6 trial-readiness gate and a private repository decision), spoken replies from
+Donna (voice *dictation* into the outcome form exists; Donna does not speak back), and
 closed-app notifications.

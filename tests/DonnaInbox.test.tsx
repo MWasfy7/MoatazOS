@@ -31,6 +31,11 @@ function renderDonna() {
 
 const alpha = () => screen.getByTestId("donna-question-call-alpha");
 
+/** The outcome form is a short guided flow; this moves it forward `times` steps. */
+async function advance(user: ReturnType<typeof userEvent.setup>, times: number, name = "Next") {
+  for (let i = 0; i < times; i += 1) await user.click(within(alpha()).getByRole("button", { name }));
+}
+
 describe("Donna inbox (English)", () => {
   it("shows unresolved questions on open with the five options", () => {
     renderDonna();
@@ -122,6 +127,7 @@ describe("Donna inbox (English)", () => {
     renderDonna();
     await user.click(within(alpha()).getByRole("button", { name: "Spoke" }));
     await user.type(within(alpha()).getByLabelText(/What happened/), "Asked for a revised offer");
+    await advance(user, 2);
     await user.click(within(alpha()).getByLabelText(/Internal follow-up date/));
     fireEvent.change(within(alpha()).getByLabelText("Follow-up date"), { target: { value: "2026-10-29" } });
     await user.click(within(alpha()).getByRole("button", { name: "Save outcome" }));
@@ -137,6 +143,7 @@ describe("Donna inbox (English)", () => {
     const user = userEvent.setup();
     renderDonna();
     await user.click(within(alpha()).getByRole("button", { name: "Spoke" }));
+    await advance(user, 2);
     await user.click(within(alpha()).getByLabelText(/Client-confirmed appointment \(/));
     fireEvent.change(within(alpha()).getByLabelText("Appointment date and time"), { target: { value: "2026-10-30T11:00" } });
     await user.click(within(alpha()).getByRole("button", { name: "Save outcome" }));
@@ -198,6 +205,7 @@ describe("Donna inbox (Arabic / RTL)", () => {
     renderDonna();
     await user.click(screen.getByRole("button", { name: "switch-ar" }));
     await user.click(within(alpha()).getByRole("button", { name: "تحدثت" }));
+    await advance(user, 2, "التالي");
     await user.click(within(alpha()).getByLabelText(/تاريخ متابعة داخلي/));
     fireEvent.change(within(alpha()).getByLabelText("تاريخ المتابعة"), { target: { value: "2026-10-29" } });
     await user.click(within(alpha()).getByRole("button", { name: "حفظ النتيجة" }));

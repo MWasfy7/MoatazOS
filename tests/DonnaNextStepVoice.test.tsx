@@ -51,6 +51,11 @@ async function mountWithDueCall() {
   return { store, card };
 }
 
+/** The outcome form is a short guided flow; this presses Next `times` times. */
+async function advance(user: ReturnType<typeof userEvent.setup>, card: HTMLElement, times = 1, name = "Next") {
+  for (let i = 0; i < times; i += 1) await user.click(within(card).getByRole("button", { name }));
+}
+
 class FakeRecognition {
   static last: FakeRecognition | null = null;
   static startThrows = false;
@@ -138,7 +143,9 @@ describe("Next step field and voice input in the outcome form (MOCK)", () => {
     const { store, card } = await mountWithDueCall();
     await user.click(within(card).getByRole("button", { name: "Spoke" }));
     await user.type(within(card).getByLabelText(/What happened/), "Liked the view");
+    await advance(user, card);
     await user.type(within(card).getByLabelText(/Next step \(/), "Send payment plan");
+    await advance(user, card);
     await user.click(within(card).getByLabelText(/Internal follow-up date/));
     await user.type(within(card).getByLabelText("Follow-up date", { exact: true }), "2026-10-28");
     await user.click(within(card).getByRole("button", { name: "Save outcome" }));
@@ -160,6 +167,7 @@ describe("Next step field and voice input in the outcome form (MOCK)", () => {
     await user.click(within(card).getByRole("button", { name: "Spoke" }));
     await user.click(within(card).getByLabelText(/What happened/));
     await user.paste(note);
+    await advance(user, card);
     await user.click(within(card).getByLabelText(/Next step \(/));
     await user.paste(next);
     await user.click(within(card).getByRole("button", { name: "Save outcome" }));
@@ -200,6 +208,7 @@ describe("Next step field and voice input in the outcome form (MOCK)", () => {
     const { card } = await mountWithDueCall();
     await user.click(within(card).getByRole("button", { name: "Spoke" }));
     await user.click(screen.getByRole("button", { name: "switch-ar" }));
+    await advance(user, card, 1, "التالي");
     expect(await within(card).findByLabelText(/الخطوة التالية \(/)).toBeInTheDocument();
   });
 
@@ -226,6 +235,7 @@ describe("Next step field and voice input in the outcome form (MOCK)", () => {
       FakeRecognition.last?.onend?.();
     });
     expect(within(card).getByLabelText(/What happened/)).toHaveValue("client liked the view");
+    await advance(user, card);
     await user.click(within(card).getByRole("button", { name: /Speak — next step/ }));
     act(() => {
       FakeRecognition.last?.onresult?.({ results: [[{ transcript: "send brochure" }]] });

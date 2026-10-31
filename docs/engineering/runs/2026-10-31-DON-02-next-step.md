@@ -51,3 +51,27 @@ memory view with the operator's words untouched plus session-only corrections, a
 - Hardware visible from WSL: NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB.
 - Conclusion: AirLLM is not installed or running, so Donna cannot connect to it. ChatGPT, Claude and Gemini chat subscriptions are not integrated
   and are not API access.
+
+## Command-center UI slice (after phone test)
+
+Phone feedback: the first workflow works but feels flat and confusing. This slice changes the screens only; no migration, no new
+dependency, no network code, no model, nothing is sent.
+
+- **Today** opens with a "Do this now" card (the oldest call waiting for an answer, else the most urgent follow-up, else the next
+  call). Calls waiting for an answer are shown as full guided cards; upcoming calls and open follow-ups are rows that open in place
+  to show the client's earlier history and, for a follow-up, the draft (prepare, edit, approve, copy).
+- **Guided outcome flow**: did it happen (Spoke / No answer / Didn't call) -> what happened -> next step -> follow-up date, with a
+  progress bar, a check-before-saving summary, and voice dictation on both text steps. Save is available from every step. Every text is
+  still sent exactly as typed or dictated.
+- **Feedback**: a confirmation appears only after the action succeeded. In sync mode that is after the database acknowledged the write
+  and the records were re-read. In demo mode it says plainly that the record is kept in the tab only.
+- **Deliberately not added**: reschedule of a planned call or of a follow-up date. Nothing in the existing schema can change a planned
+  call's time or edit a recorded follow-up (append-only), so a button would not persist. Snooze (which does persist) is offered.
+  "Mark a follow-up done" is likewise not offered: a follow-up ends when a later conversation with the same client is recorded.
+- Press feedback (scale), entrance animation, 44px+ targets, reduced-motion respected globally.
+
+Checks (synthetic data, sync off for unit/browser suites): typecheck clean, lint clean, 31 files / 319 unit tests, build compiled,
+54 browser tests (desktop Chromium + 390px Arabic RTL), hosted acceptance 14/14 against `wtdstuqpbzjcdywqhwgq`
+(2026-10-31T20:19:54Z to 20:20:28Z; migration confirmed present first).
+Not verified: a real phone's touch feel and the real microphone; the full-page screenshot of the Arabic mobile page shows the
+language switcher floating over content, which is how the capture renders a fixed element and was not checked on a device.

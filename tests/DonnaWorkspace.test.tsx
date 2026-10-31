@@ -27,7 +27,7 @@ describe("Donna workspace screens (demo data)", () => {
     mount();
     const today = screen.getByTestId("donna-today");
     expect(within(today).getByText("Today")).toBeInTheDocument();
-    expect(within(today).getByTestId("donna-today-needs-count")).toHaveTextContent("(2)");
+    expect(within(today).getByTestId("donna-unresolved-count")).toHaveTextContent("(2)");
     expect(within(today).getByTestId("donna-today-needs-call-alpha")).toHaveTextContent("Synthetic Client Alpha");
     expect(within(today).getByTestId("donna-today-call-call-gamma")).toHaveTextContent("Synthetic Client Gamma");
     const commitment = within(today).getByTestId("donna-today-commitment-call-delta");

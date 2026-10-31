@@ -307,6 +307,8 @@ describe("plan a synthetic call (phone flow; MOCK store)", () => {
     expect(call.id).toMatch(/^plan-/);
     const card = await screen.findByTestId(`donna-question-${call.id}`);
     await fillSpoke(user, card);
+    await user.click(within(card).getByRole("button", { name: "Next" }));
+    await user.click(within(card).getByRole("button", { name: "Next" }));
     await user.click(within(card).getByLabelText(/Internal follow-up date/));
     await user.type(within(card).getByLabelText("Follow-up date", { exact: true }), "2026-10-28");
     await user.click(within(card).getByRole("button", { name: "Save outcome" }));

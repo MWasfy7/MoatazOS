@@ -70,7 +70,9 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     await expect(card).toBeVisible();
     await card.getByRole("button", { name: "Spoke" }).click();
     await card.getByLabel(/What happened/).fill(NOTE);
+    await card.getByRole("button", { name: "Next", exact: true }).click();
     await card.getByLabel(/Next step \(/).fill(NEXT_STEP);
+    await card.getByRole("button", { name: "Next", exact: true }).click();
     await card.getByLabel(/Internal follow-up date/).check();
     await card.getByLabel("Follow-up date", { exact: true }).fill(followUp);
     await card.getByRole("button", { name: "Save outcome" }).click();
@@ -145,16 +147,25 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     await expect(card).toBeVisible();
     await card.getByRole("button", { name: "Spoke" }).click();
     await card.getByLabel(/What happened/).fill(phoneNote);
+    await card.getByRole("button", { name: "Next", exact: true }).click();
     await card.getByLabel(/Next step \(/).fill(phoneNext);
+    await card.getByRole("button", { name: "Next", exact: true }).click();
     await card.getByLabel(/Internal follow-up date/).check();
     await card.getByLabel("Follow-up date", { exact: true }).fill(followUp);
     await card.getByRole("button", { name: "Save outcome" }).click();
+    // The confirmation appears only after the database acknowledged the write and the records were re-read.
+    await expect(page.getByTestId("donna-toast")).toContainText("Recorded for");
+    await expect(page.getByTestId("donna-toast")).not.toContainText("Demo mode");
     await expect(page.getByTestId(`donna-record-${id}`)).toContainText(phoneNote);
     await expect(page.getByTestId(`donna-nextstep-${id}`)).toContainText(phoneNext);
     await page.reload();
     await expect(page.getByTestId(`donna-record-${id}`)).toContainText(phoneNote);
     await expect(page.getByTestId(`donna-nextstep-${id}`)).toContainText(phoneNext);
     await expect(page.getByTestId(`donna-next-${id}`)).toContainText(followUp);
+    // The open follow-up expands in place and shows the client's history without leaving the screen.
+    const commitment = page.getByTestId(`donna-today-commitment-${id}`);
+    await commitment.getByRole("button").first().click();
+    await expect(commitment.getByTestId("donna-history-cl-delta")).toContainText(phoneNote);
     // Draft for review: approval is required before copying; nothing is sent.
     const draft = page.getByTestId(`donna-draft-${id}`);
     await draft.getByRole("button", { name: "Prepare a follow-up draft" }).click();

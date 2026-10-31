@@ -17,6 +17,10 @@ import { useLocale } from "@/lib/i18n/LocaleProvider";
 import type { Dictionary } from "@/lib/i18n/en";
 import { DonnaSyncPanel } from "./DonnaSyncPanel";
 import { VoiceButton } from "./VoiceButton";
+import { TodayPanel } from "./TodayPanel";
+import { DraftCard } from "./DraftCard";
+import { ClientMemoryPanel } from "./ClientMemoryPanel";
+import { AiStatusPanel } from "./AiStatusPanel";
 import { useDonna, type PreparedEvent } from "./DonnaProvider";
 
 type Copy = Dictionary["donna"];
@@ -94,6 +98,8 @@ export function DonnaInbox() {
 
       {showLists ? (
         <>
+      <TodayPanel />
+
       <section aria-labelledby="donna-unresolved" className="space-y-3">
         <h2 id="donna-unresolved" className="text-lg font-semibold text-neutral-50">
           {copy.unresolvedTitle} <span data-testid="donna-unresolved-count">({inbox.unresolved.length})</span>
@@ -130,8 +136,12 @@ export function DonnaInbox() {
           ))
         )}
       </section>
+
+      <ClientMemoryPanel />
         </>
       ) : null}
+
+      <AiStatusPanel />
     </div>
   );
 }
@@ -396,6 +406,7 @@ function RecordCard({ callId, client, dueAt, record, copy, offset }: { callId: s
           </p>
         ) : null}
       </div>
+      <DraftCard callId={callId} clientName={client} record={record} offsetMinutes={offset} />
     </article>
   );
 }

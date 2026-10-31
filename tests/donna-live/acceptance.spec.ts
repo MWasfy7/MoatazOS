@@ -95,6 +95,12 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     expect(await page2.getByTestId(`donna-record-${UI_CALL}`).textContent()).toContain(NOTE);
     expect(await page2.getByTestId(`donna-nextstep-${UI_CALL}`).textContent()).toContain(NEXT_STEP);
     await expect(page2.getByTestId(`donna-question-${UI_CALL}`)).toHaveCount(0);
+    // Today keeps the follow-up commitment visible, with the next step exactly as saved.
+    const commitment = page2.getByTestId(`donna-today-commitment-${UI_CALL}`);
+    await expect(commitment).toHaveAttribute("data-status", "UPCOMING");
+    expect(await commitment.textContent()).toContain(NEXT_STEP);
+    // Memory view shows the operator's words untouched.
+    expect(await page2.getByTestId("donna-memory-cl-alpha").textContent()).toContain(NOTE);
 
     // Exactly one outcome row, read straight from the database.
     const outcomes = (await remoteA.store.load()).events.filter((e) => e.type === "OUTCOME_RECORDED" && e.callId === UI_CALL);
@@ -149,6 +155,13 @@ test.describe.serial("DON-02 live acceptance (real database)", () => {
     await expect(page.getByTestId(`donna-record-${id}`)).toContainText(phoneNote);
     await expect(page.getByTestId(`donna-nextstep-${id}`)).toContainText(phoneNext);
     await expect(page.getByTestId(`donna-next-${id}`)).toContainText(followUp);
+    // Draft for review: approval is required before copying; nothing is sent.
+    const draft = page.getByTestId(`donna-draft-${id}`);
+    await draft.getByRole("button", { name: "Prepare a follow-up draft" }).click();
+    await expect(draft.getByRole("button", { name: "Copy text" })).toBeDisabled();
+    expect(await draft.getByLabel(/Draft text/).inputValue()).toContain(phoneNext);
+    await draft.getByRole("button", { name: "Approve draft" }).click();
+    await expect(draft.getByRole("button", { name: "Copy text" })).toBeEnabled();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow, "no horizontal scroll on a 390px phone").toBe(false);
     await ctx.close();

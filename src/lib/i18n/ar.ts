@@ -3,6 +3,7 @@ import type { Dictionary } from "./en";
 export const ar: Dictionary = {
   locale: "ar",
   dir: "rtl",
+  echoHub: { contextTitle: "سياق MoatazOS الحالي", today: "مهام دونا اليوم", salesos: "فرص SalesOS", council: "مجلس الذكاء الاصطناعي", modelStatus: "إيكو يعمل محليًا مع سياق دونا وSalesOS. النماذج الخارجية غير متصلة بهذا التطبيق بعد." },
   council: {
     title: "مراجعة حالة مبيعات افتراضية", description: "شاهد كيف تطبق دونا قواعد السلامة الحالية على هذه الحالة الافتراضية. البحث التلقائي عبر النماذج غير متصل بعد.",
     status: "النماذج الخارجية الأربعة غير متصلة بعد. تستطيع دونا مراجعة الحالة محليًا الآن، بلا طلبات API أو تكلفة أو رسائل للعملاء.",
@@ -17,6 +18,7 @@ export const ar: Dictionary = {
     modules: {
       salesos: "SalesOS",
       donna: "دونا",
+      echo: "إيكو",
       performanceos: "PerformanceOS",
       revenueos: "RevenueOS",
       analyticsos: "AnalyticsOS",

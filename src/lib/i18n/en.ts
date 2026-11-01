@@ -1,6 +1,7 @@
 export const en = {
   locale: "en",
   dir: "ltr" as const,
+  echoHub: { contextTitle: "MoatazOS live context", today: "Donna Today", salesos: "SalesOS opportunities", council: "AI Council", modelStatus: "ECHO is running locally with Donna and SalesOS context. External models are not connected to this app yet." },
   council: {
     title: "Sample sales decision review", description: "See how Donna applies the current safety rules to this synthetic case. Automatic model research is not connected yet.",
     status: "Four external models are not connected yet. Donna can review this case locally now. No API calls, cost, or client messages.",
@@ -15,6 +16,7 @@ export const en = {
     modules: {
       salesos: "SalesOS",
       donna: "Donna",
+      echo: "ECHO",
       performanceos: "PerformanceOS",
       revenueos: "RevenueOS",
       analyticsos: "AnalyticsOS",

@@ -7,7 +7,7 @@ import { useLocale } from "@/lib/i18n/LocaleProvider";
 import { useDonna } from "@/components/donna/DonnaProvider";
 
 interface ModuleEntry {
-  key: "salesos" | "donna" | "performanceos" | "revenueos" | "analyticsos" | "jarvis";
+  key: "salesos" | "donna" | "echo" | "performanceos" | "revenueos" | "analyticsos" | "jarvis";
   href: string;
   implemented: boolean;
 }
@@ -15,6 +15,7 @@ interface ModuleEntry {
 const MODULES: ModuleEntry[] = [
   { key: "salesos", href: "/app-studio/salesos", implemented: true },
   ...(DONNA_ENABLED ? [{ key: "donna" as const, href: "/app-studio/donna", implemented: true }] : []),
+  { key: "echo", href: "/app-studio/echo", implemented: true },
   { key: "performanceos", href: "#", implemented: false },
   { key: "revenueos", href: "#", implemented: false },
   { key: "analyticsos", href: "#", implemented: false },

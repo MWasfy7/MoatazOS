@@ -11,6 +11,7 @@ import { FeedbackProvider } from "./Feedback";
 import { TodayPanel } from "./TodayPanel";
 import { useDonna } from "./DonnaProvider";
 import { BUTTON } from "./ui";
+import Link from "next/link";
 
 type Copy = Dictionary["donna"];
 
@@ -37,6 +38,8 @@ export function DonnaInbox() {
             {copy.noExecution}
           </p>
         </header>
+
+        <Link href="/app-studio/donna/council" className="block rounded-xl border border-amber-700/50 bg-amber-950/20 p-4 text-sm font-semibold text-amber-100">Donna AI Council →</Link>
 
         <DonnaSyncPanel />
 

@@ -6,6 +6,7 @@ import { getOpportunity, getSnapshot, OPPORTUNITIES } from "@/lib/fixtures";
 import { OpportunityList } from "@/components/salesos/OpportunityList";
 import { DecisionCard } from "@/components/salesos/DecisionCard/DecisionCard";
 import { SnapshotComparisonView } from "@/components/salesos/DecisionCard/SnapshotComparison/SnapshotComparisonView";
+import Link from "next/link";
 
 export default function OpportunityPage({ params }: { params: { opportunityId: string } }) {
   const { opportunityId } = params;
@@ -35,6 +36,7 @@ export default function OpportunityPage({ params }: { params: { opportunityId: s
       </section>
 
       <section>
+        <Link href={`/app-studio/donna/council/${opportunity.opportunityId}`} className="mb-4 block rounded-lg border border-amber-800/60 bg-amber-950/20 p-3 text-sm font-semibold text-amber-200">{dict.council.openFromSales} →</Link>
         {comparing && newerSnapshot ? (
           <SnapshotComparisonView before={snapshot} after={newerSnapshot} onBack={() => setComparing(false)} />
         ) : (

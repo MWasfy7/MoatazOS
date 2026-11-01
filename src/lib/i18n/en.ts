@@ -1,6 +1,14 @@
 export const en = {
   locale: "en",
   dir: "ltr" as const,
+  council: {
+    title: "Four-model sales review", description: "Run one synthetic case through four independent websites, paste each answer, then review Donna's bounded recommendation.",
+    status: "Manual mode · 0 API calls · $0 spend · no client message is sent. Paid chat subscriptions do not include API credit; DeepSeek's free website does not mean free API usage.",
+    caseTitle: "The case", caseLabel: "Case details", snapshotLabel: "SalesOS snapshot", redaction: "Copy the masked version. Check it yourself before pasting into a model website.", copyPrompt: "Copy masked case", copied: "Copied", sources: "Verified inventory or market sources (optional)",
+    responses: "Independent responses", pasted: "Pasted", waiting: "Waiting", pasteHere: "Paste the model's answer here", recommendation: "Donna's action review", partial: "Partial review: paste all four responses for a complete comparison.",
+    psychology: "Possible psychology", blocker: "Decision blocker", leverage: "Leverage", micro: "Smallest next step", risk: "Risk of pressure", evidence: "Evidence limit", benchmark: "Safety benchmark", benchmarkNote: "Heuristic score for this case only. Read the responses and flags; this does not measure model quality generally.",
+    draft: "Client message draft", noAction: "SalesOS has not cleared client outreach. Review the evidence or wait for a new buyer signal; no message draft is available.", openFromSales: "Review with Donna Council", notSent: "Draft only. Review and approve the exact text before copying. Donna never sends it.", approve: "Approve this text", copyDraft: "Copy approved draft", approved: "Approved for copying", approvalNeeded: "Approval required; editing withdraws approval.",
+  },
   appStudio: {
     title: "MoatazOS App Studio",
     modules: {

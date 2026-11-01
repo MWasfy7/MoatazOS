@@ -17,7 +17,9 @@ describe("Donna AI Council", () => {
   });
   it("requires approval of the exact draft and shows partial status", () => {
     render(<LocaleProvider><CouncilWorkspace /></LocaleProvider>);
-    expect(screen.getByText(/Partial review/)).toBeInTheDocument();
+    expect(screen.queryByTestId("council-review")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Review sample case" }));
+    expect(screen.getByText(/Local rule-based review of this sample/)).toBeInTheDocument();
     const copy = screen.getByRole("button", { name: "Copy approved draft" });
     expect(copy).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Approve this text" }));
@@ -27,6 +29,7 @@ describe("Donna AI Council", () => {
   });
   it("keeps SalesOS restraint primary and removes the client draft", () => {
     render(<LocaleProvider><CouncilWorkspace salesGate={{ allowed: false, reason: "NO_ACTION · CURRENT", snapshotId: "snap-test" }} /></LocaleProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "Review sample case" }));
     expect(screen.getByTestId("council-sales-gate")).toHaveTextContent("NO_ACTION");
     expect(screen.getByText(/has not cleared client outreach/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy approved draft" })).not.toBeInTheDocument();

@@ -2,8 +2,9 @@ export const en = {
   locale: "en",
   dir: "ltr" as const,
   council: {
-    title: "Four-model sales review", description: "Run one synthetic case through four independent websites, paste each answer, then review Donna's bounded recommendation.",
-    status: "Manual mode · 0 API calls · $0 spend · no client message is sent. Paid chat subscriptions do not include API credit; DeepSeek's free website does not mean free API usage.",
+    title: "Sample sales decision review", description: "See how Donna applies the current safety rules to this synthetic case. Automatic model research is not connected yet.",
+    status: "Four external models are not connected yet. Donna can review this case locally now. No API calls, cost, or client messages.",
+    reviewNow: "Review sample case", privacyDetails: "Privacy and masked copy", manualOptional: "Optional: compare answers you already have", localOnly: "Local rule-based review of this sample. No external model was asked.", fourCompared: "Four pasted responses are shown below. The recommendation remains rule-based.",
     caseTitle: "The case", caseLabel: "Case details", snapshotLabel: "SalesOS snapshot", redaction: "Copy the masked version. Check it yourself before pasting into a model website.", copyPrompt: "Copy masked case", copied: "Copied", sources: "Verified inventory or market sources (optional)",
     responses: "Independent responses", pasted: "Pasted", waiting: "Waiting", pasteHere: "Paste the model's answer here", recommendation: "Donna's action review", partial: "Partial review: paste all four responses for a complete comparison.",
     psychology: "Possible psychology", blocker: "Decision blocker", leverage: "Leverage", micro: "Smallest next step", risk: "Risk of pressure", evidence: "Evidence limit", benchmark: "Safety benchmark", benchmarkNote: "Heuristic score for this case only. Read the responses and flags; this does not measure model quality generally.",

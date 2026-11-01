@@ -11,5 +11,6 @@ test("SalesOS handoff keeps restraint and council remains usable", async ({ page
 test("standalone council opens for a synthetic case", async ({ page }) => {
   await page.goto("/app-studio/donna/council");
   await expect(page.getByTestId("donna-council")).toBeVisible();
-  await expect(page.getByText("Independent responses")).toBeVisible();
+  await page.getByRole("button", { name: "Review sample case" }).click();
+  await expect(page.getByText("Local rule-based review of this sample. No external model was asked.")).toBeVisible();
 });

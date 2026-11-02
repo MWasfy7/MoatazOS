@@ -19,11 +19,11 @@ test.describe("Donna morning brief (synthetic)", () => {
     await brief.screenshot({ path: testInfo.outputPath(`donna-brief-${testInfo.project.name}.png`) });
   });
 
-  test("installs to the home screen: manifest opens Donna full-screen", async ({ request }) => {
+  test("installs to the home screen: manifest opens Donna's call full-screen", async ({ request }) => {
     const res = await request.get("/manifest.webmanifest");
     expect(res.ok()).toBe(true);
     const manifest = await res.json();
-    expect(manifest).toMatchObject({ short_name: "Donna", start_url: "/app-studio/donna", display: "standalone" });
+    expect(manifest).toMatchObject({ short_name: "Donna", start_url: "/app-studio/donna/talk", display: "standalone" });
     for (const icon of manifest.icons as Array<{ src: string }>) expect((await request.get(icon.src)).ok()).toBe(true);
   });
 });

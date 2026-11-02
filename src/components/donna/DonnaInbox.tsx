@@ -40,6 +40,21 @@ export function DonnaInbox() {
           </p>
         </header>
 
+        <Link
+          href="/app-studio/donna/talk"
+          className="group flex items-center gap-4 rounded-2xl border border-rose-700/50 bg-gradient-to-r from-rose-950/70 via-amber-950/40 to-neutral-950 p-4 transition hover:border-rose-500/70 active:scale-[0.99]"
+          data-testid="donna-talk-open"
+        >
+          <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 via-orange-500 to-rose-700 shadow-[0_0_28px_rgba(244,63,94,0.45)]">
+            <span className="absolute inset-0 rounded-full border border-rose-400/40 motion-safe:animate-ping" />
+            <span className="h-3 w-3 rounded-full bg-white/90" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-base font-semibold text-neutral-50">{copy.talk.open}</span>
+            <span className="block text-sm text-neutral-300" dir="auto">{copy.talk.openHint}</span>
+          </span>
+        </Link>
+
         {showLists ? <MorningBrief /> : null}
 
         <Link href="/app-studio/donna/council" className="block rounded-xl border border-amber-700/50 bg-amber-950/20 p-4 text-sm font-semibold text-amber-100">Donna AI Council →</Link>

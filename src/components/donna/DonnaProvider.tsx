@@ -6,12 +6,17 @@ import {
   applyEvent,
   buildInbox,
   buildSyntheticCalls,
+  createDemoProfiles,
   createDemoState,
   DEMO_CLIENTS,
   DEMO_NOW,
   DEMO_POLICY,
   DonnaStoreError,
+  fileProposal,
+  keepPromise,
   rebuildState,
+  type ClientProfile,
+  type DebriefProposal,
   type DonnaEventInput,
   type DonnaInbox,
   type DonnaRemote,
@@ -89,6 +94,11 @@ interface DonnaContextValue {
   /** Plan one synthetic call for a synthetic client, due `dueInMinutes` from now (negative = already due). */
   planCall: (clientId: string, dueInMinutes: number) => Promise<ActionResult>;
   clientLabel: (clientId: string) => string;
+  /** What Donna remembers about each client. Memory only (synthetic); a reload resets it. */
+  profiles: readonly ClientProfile[];
+  /** File a debrief the operator confirmed. Changes memory only; nothing is sent anywhere. */
+  fileDebrief: (proposal: DebriefProposal) => void;
+  markPromiseKept: (clientId: string, promiseId: string) => void;
 }
 
 const DonnaContext = createContext<DonnaContextValue | null>(null);
@@ -128,6 +138,7 @@ export function DonnaProvider({ children, remote: injectedRemote, syncConfig, cl
   const [demoNow, setDemoNow] = useState<string>(DEMO_NOW);
   const [syncNow, setSyncNow] = useState<string>(() => clock());
   const [dismissedIds, setDismissedIds] = useState<readonly string[]>([]);
+  const [profiles, setProfiles] = useState<readonly ClientProfile[]>(() => createDemoProfiles(DEMO_NOW));
 
   const [remote, setRemote] = useState<DonnaRemote | null>(injectedRemote ?? null);
   const [remoteState, setRemoteState] = useState<DonnaState | null>(null);
@@ -346,6 +357,7 @@ export function DonnaProvider({ children, remote: injectedRemote, syncConfig, cl
         setDemoState(createDemoState());
         setDemoNow(DEMO_NOW);
         setDismissedIds([]);
+        setProfiles(createDemoProfiles(DEMO_NOW));
       },
       prepare: {
         outcome: (callId, outcome, originalInput, nextAction, nextStep = null) =>
@@ -434,8 +446,11 @@ export function DonnaProvider({ children, remote: injectedRemote, syncConfig, cl
         const client = state.clients.find((c) => c.id === clientId);
         return client ? client.label[locale] : clientId;
       },
+      profiles,
+      fileDebrief: (proposal) => setProfiles((current) => fileProposal(current, proposal, clockNow())),
+      markPromiseKept: (clientId, promiseId) => setProfiles((current) => keepPromise(current, clientId, promiseId)),
     }),
-    [state, now, clockNow, inbox, config, phase, email, busy, loadError, notice, recovery, lastAckAt, bannerHidden, newId, syncOn, syncSend, demoApply, demoState, demoNow, loadNow, clock, locale, adoptIdentity, resetIdentity],
+    [state, now, clockNow, inbox, config, phase, email, busy, loadError, notice, recovery, lastAckAt, bannerHidden, newId, syncOn, syncSend, demoApply, demoState, demoNow, loadNow, clock, locale, adoptIdentity, resetIdentity, profiles],
   );
 
   return <DonnaContext.Provider value={value}>{children}</DonnaContext.Provider>;

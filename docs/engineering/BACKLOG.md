@@ -324,6 +324,58 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
     silence 5/5 passed. It stays a synthetic-data prototype until a second speaker and unseen clips pass.
   - Real-device (iPhone) microphone check.
 
+### DON-06 Donna's character, morning brief, phone install — `IN_REVIEW`
+- **Merge:** `owner` (touches `src/`, adds user-facing surfaces)
+- **Authorization:** owner-directed in a live session on 2026-11-02 ("start building it where it lives in
+  both my computer and phone and moves with me on the go"). Covers code, tests, docs and a pushed branch.
+  No merge, deployment, hosting, service worker or real client data.
+- **Done (branch `claude/auto-don-06-morning-brief`, stacked on DON-03, no PR yet):** `docs/product/DONNA.md`
+  (character brief from the owner interview), `src/lib/donna/brief.ts` (pure morning brief: restraint
+  first, then promises, missing outcomes, cold leads, calls, one gap question per client),
+  `MorningBrief` (spoken through the browser, EN/AR), web manifest and icons for home-screen install.
+- **Not done:** real iPhone install check, hosting for use away from home Wi-Fi.
+
+### DON-07 Talk to Donna: voice-first live mode — `IN_REVIEW`
+- **Merge:** `owner` (touches `src/`, adds a user-facing surface)
+- **Authorization:** owner-directed in a live session on 2026-11-03: build something on the level of the
+  "Jarvis" assistants people build, with Donna Paulsen as the reference, using the owner's own sales
+  playbook. Covers code, tests, docs and a pushed branch only. No merge, deployment, paid service,
+  language model, network call from `src/`, or real client data.
+- **Goal / value:** Donna stops being a page and becomes someone you talk to. Opening the installed app
+  is answering her call; she speaks first, then it is a conversation by voice or text, in English or
+  Egyptian Arabic, answered only from what she remembers.
+- **Done (branch `claude/auto-don-07-talk-to-donna`, stacked on DON-06):**
+  - `src/lib/donna/speech.ts` (pure): Arabic/English normalisation, client names however spoken or
+    spelled, money ("٤ مليون ونص", "4.5M"), percentages, years, bedrooms, spoken due dates, voice choice.
+  - `src/lib/donna/book.ts` (pure): temperature and drift per client (hot, warm, going cold, cold, held).
+  - `src/lib/donna/mind.ts` (pure, deterministic): intents in both languages; answers for the brief, who
+    to call (held clients named first, never picked), who to leave alone, promises, cold leads, client
+    dossiers, before-call prep, messaging checks, a truth check against what the owner already told a
+    client, and spoken debriefs that become a proposal filed only after "file it". Pushback grows when
+    the owner insists on contacting a held client. Owner playbook rules applied in general form (no client
+    data): no fourth unanswered message, one try after a missed call, deliver what you owe before asking
+    anything new, personal blockers and requests for space become holds, short asks, "you did your part"
+    after a loss.
+  - `src/components/donna/talk/*`: incoming-call screen, a canvas orb that breathes, listens and ripples
+    with her words, a radar of the whole book (closer = warmer, grey = leave alone, red ring = late
+    promise), conversation with dossier, brief and proposal cards, mic with hands-free follow-up,
+    keyboard shortcuts, mute, EN/AR toggle, per-turn language matching. Route `/app-studio/donna/talk`;
+    the manifest now opens there. Memory (profiles) moved into `DonnaProvider` so the brief and Talk share
+    it; a confirmed debrief with an open call question also records that outcome through the existing
+    engine.
+  - Tests: `tests/DonnaMind.test.ts` (22), `tests/DonnaTalk.test.tsx` (7), `tests/e2e/donna-talk.spec.ts`
+    on both projects. Verified locally: typecheck, lint, 429 unit tests (40 files), production build,
+    Playwright 70/70 (35 per project; mobile-arabic on local WebKit, not CI).
+- **Not done / blocked:**
+  - Free conversation beyond the known intents. A language model would need an owner-approved
+    invariant 8 exception naming the file and host, plus a privacy decision; today every sentence is
+    built from recorded facts, so she cannot invent a price.
+  - Memory beyond the open tab (the DON-02 store keeps call events, not profiles).
+  - Donna calling when the app is closed (needs DON-04 notifications); always-on wake word (not possible
+    for a web app on iPhone).
+  - Real-device check of iPhone speech recognition and Arabic voices; hosting for use away from home;
+    real client data (gate G6).
+
 ## 3. Blocked
 
 ### ECH-02 Make the NLF-50 harness hermetic (rework #11) — `BLOCKED` on OD-3, ECH-01

@@ -9,7 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Donna — MoatazOS",
     short_name: "Donna",
     description: "Your chief of staff for real-estate sales. Synthetic data only.",
-    start_url: "/app-studio/donna",
+    // Opening the app is answering Donna's call: she speaks first.
+    start_url: "/app-studio/donna/talk",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
@@ -19,6 +20,10 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/donna-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icons/donna-512.png", sizes: "512x512", type: "image/png" },
       { src: "/icons/donna-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+    shortcuts: [
+      { name: "Talk to Donna", url: "/app-studio/donna/talk" },
+      { name: "Donna inbox", url: "/app-studio/donna" },
     ],
   };
 }

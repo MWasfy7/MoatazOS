@@ -47,6 +47,27 @@ No forgotten promises, fewer cold leads, more closings, and the owner starts eve
 what matters. Context: the owner's own targets are EGP 500,000 commission a month and about
 50 calls a day.
 
+## Talk to Donna (DON-07)
+Opening the app is answering her call. "Donna is calling…", you pick up, and she speaks first:
+the brief, restraint first, then who to start with. After that you just talk (or type), in either
+language, and she answers in the one you used.
+
+- **The orb** is her presence: it breathes when she waits, leans in when she listens, ripples with
+  each word, turns red when she says stop and gold when she is pleased.
+- **The radar** is your whole book around her. Closer means a more recent real conversation; a hot
+  lead going cold literally drifts outward. Grey with a slash: leave alone. Red ring: a late promise.
+  Tap anyone to ask about them.
+- **Before a call:** "Prep me for Gamma" gets what they want, what you promised (deliver that first),
+  what you already told them, and the one question still missing.
+- **After a call:** say what happened in your own words. She reads back what she will file (promises
+  with dates, budget, area, unit, payment, personal details, holds) and files it only when you say
+  "file it". If you just told a client a different price than last time, she says so.
+- **About to slip:** "I'm calling Beta" after three unanswered messages gets "Don't." Ask again and
+  she pushes harder. "I'll tell Alpha 4 million" after you said 4.5 gets "Careful."
+
+She is deterministic on purpose: every sentence comes from what is recorded, so she cannot make up
+a price or a promise. Free conversation with a language model is a later owner decision.
+
 ## Where she lives
 On the owner's computer and phone, the same Donna on both. The app installs to the phone's home
 screen. Reaching it away from home needs it hosted somewhere — an owner decision (deployment is

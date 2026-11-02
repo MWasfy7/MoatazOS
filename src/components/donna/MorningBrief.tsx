@@ -1,55 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { buildMorningBrief, createDemoProfiles, DEMO_NOW, formatLocal, type BriefLine, type ClientWants } from "@/lib/donna";
-import type { Dictionary } from "@/lib/i18n/en";
+import { buildMorningBrief, type BriefLine } from "@/lib/donna";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
+import { Bidi } from "./Bidi";
+import { fill, lineText } from "./briefText";
 import { useDonna } from "./DonnaProvider";
 import { BUTTON, PRIMARY } from "./ui";
 
-type Copy = Dictionary["donna"]["brief"];
-
-/** Keeps the operator's own words (often another language) in one piece inside RTL or LTR text. */
-const isolate = (text: string) => `⁨"${text}"⁩`;
-
-const fill = (template: string, values: Record<string, string | number>) =>
-  template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ""));
-
-function wantsText(wants: ClientWants, copy: Copy): string {
-  const parts = [
-    wants.unit,
-    wants.area ? fill(copy.parts.area, { v: wants.area }) : null,
-    wants.budget ? fill(copy.parts.budget, { v: wants.budget }) : null,
-    wants.payment ? copy.parts[wants.payment] : null,
-    wants.purpose ? copy.parts[wants.purpose] : null,
-  ].filter(Boolean);
-  return parts.length ? fill(copy.wants, { parts: parts.join(", ") }) : "";
-}
-
-export function lineText(line: BriefLine, copy: Copy, client: string, offset: number): string {
-  switch (line.kind) {
-    case "HOLD_OFF":
-      return fill(line.reason === "ASKED_FOR_SPACE" ? copy.lines.HOLD_OFF_ASKED_FOR_SPACE : copy.lines.HOLD_OFF_UNANSWERED, { client, count: line.count });
-    case "PROMISE_OVERDUE":
-      return fill(copy.lines.PROMISE_OVERDUE, { client, text: isolate(line.text), days: line.days });
-    case "PROMISE_TODAY":
-      return fill(copy.lines.PROMISE_TODAY, { client, text: isolate(line.text) });
-    case "OUTCOME_MISSING":
-      return fill(copy.lines.OUTCOME_MISSING, { client });
-    case "GOING_COLD":
-      return fill(copy.lines.GOING_COLD, { client, days: line.days });
-    case "CALL_TODAY":
-      return [
-        fill(copy.lines.CALL_TODAY, { client, time: formatLocal(line.at, offset).slice(-5) }),
-        wantsText(line.wants, copy),
-        line.openPromise ? fill(copy.bringUp, { text: isolate(line.openPromise) }) : "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-    case "MISSING_INFO":
-      return fill(copy.lines.MISSING_INFO, { client, field: copy.fields[line.field] });
-  }
-}
+export { lineText };
 
 const TONE: Record<BriefLine["kind"], string> = {
   HOLD_OFF: "border-rose-700 bg-rose-950/40",
@@ -95,10 +54,9 @@ function useSpeech() {
  */
 export function MorningBrief() {
   const { dict, locale } = useLocale();
-  const { state, now, clientLabel } = useDonna();
+  const { state, now, clientLabel, profiles } = useDonna();
   const copy = dict.donna.brief;
   const offset = state.policy.utcOffsetMinutes;
-  const profiles = useMemo(() => createDemoProfiles(DEMO_NOW), []);
   const brief = useMemo(() => buildMorningBrief(state, profiles, now), [state, profiles, now]);
   const { supported, speaking, speak, stop } = useSpeech();
 
@@ -143,7 +101,7 @@ export function MorningBrief() {
             data-client={line.clientId}
           >
             <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-200" dir="auto">{copy.priority[line.kind]}</p>
-            <p className="text-base leading-7 text-neutral-100" dir="auto">{texts[index]}</p>
+            <p className="text-base leading-7 text-neutral-100" dir="auto"><Bidi text={texts[index] ?? ""} /></p>
           </li>
         ))}
       </ol>

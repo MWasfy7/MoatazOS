@@ -9,6 +9,9 @@ import { BUTTON, PRIMARY } from "./ui";
 
 type Copy = Dictionary["donna"]["brief"];
 
+/** Keeps the operator's own words (often another language) in one piece inside RTL or LTR text. */
+const isolate = (text: string) => `⁨"${text}"⁩`;
+
 const fill = (template: string, values: Record<string, string | number>) =>
   template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ""));
 
@@ -28,9 +31,9 @@ export function lineText(line: BriefLine, copy: Copy, client: string, offset: nu
     case "HOLD_OFF":
       return fill(line.reason === "ASKED_FOR_SPACE" ? copy.lines.HOLD_OFF_ASKED_FOR_SPACE : copy.lines.HOLD_OFF_UNANSWERED, { client, count: line.count });
     case "PROMISE_OVERDUE":
-      return fill(copy.lines.PROMISE_OVERDUE, { client, text: line.text, days: line.days });
+      return fill(copy.lines.PROMISE_OVERDUE, { client, text: isolate(line.text), days: line.days });
     case "PROMISE_TODAY":
-      return fill(copy.lines.PROMISE_TODAY, { client, text: line.text });
+      return fill(copy.lines.PROMISE_TODAY, { client, text: isolate(line.text) });
     case "OUTCOME_MISSING":
       return fill(copy.lines.OUTCOME_MISSING, { client });
     case "GOING_COLD":
@@ -39,7 +42,7 @@ export function lineText(line: BriefLine, copy: Copy, client: string, offset: nu
       return [
         fill(copy.lines.CALL_TODAY, { client, time: formatLocal(line.at, offset).slice(-5) }),
         wantsText(line.wants, copy),
-        line.openPromise ? fill(copy.bringUp, { text: line.openPromise }) : "",
+        line.openPromise ? fill(copy.bringUp, { text: isolate(line.openPromise) }) : "",
       ]
         .filter(Boolean)
         .join(" ");

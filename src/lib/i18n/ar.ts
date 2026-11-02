@@ -224,15 +224,15 @@ export const ar: Dictionary = {
       lines: {
         HOLD_OFF_ASKED_FOR_SPACE: "سيب {client} في حاله. طلب مساحة. متتصلش ومتبعتش.",
         HOLD_OFF_UNANSWERED: "بطّل تبعت لـ{client}. {count} رسايل من غير رد. رسالة كمان هتضر أكتر ما تنفع.",
-        PROMISE_OVERDUE: "إنت وعدت {client}: \"{text}\". ده كان من {days} أيام. اعمله النهارده أو قوله السبب.",
-        PROMISE_TODAY: "النهارده عليك لـ{client}: \"{text}\".",
+        PROMISE_OVERDUE: "إنت وعدت {client}: {text}. ده كان من {days} أيام. اعمله النهارده أو قوله السبب.",
+        PROMISE_TODAY: "النهارده عليك لـ{client}: {text}.",
         OUTCOME_MISSING: "مكالمتك مع {client} ميعادها فات ومقلتليش حصل إيه. قولّي دلوقتي.",
         GOING_COLD: "{client} مشتري جاد ومسمعش منك بقاله {days} أيام. الدور عليك. كلّمه.",
         CALL_TODAY: "{time}: كلّم {client}.",
         MISSING_INFO: "لسه معرفش {field} بتاع {client}. اسأله.",
       },
       wants: "عايز {parts}.",
-      bringUp: "افتكر: \"{text}\".",
+      bringUp: "افتكر: {text}.",
       fields: { budget: "الميزانية", purpose: "الهدف (سكن ولا استثمار)", area: "المنطقة", unit: "نوع الوحدة", payment: "طريقة الدفع" },
       parts: {
         budget: "ميزانية {v}",

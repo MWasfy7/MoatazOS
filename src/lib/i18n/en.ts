@@ -222,15 +222,15 @@ export const en = {
       lines: {
         HOLD_OFF_ASKED_FOR_SPACE: "Leave {client} alone. They asked for space. Don't call, don't message.",
         HOLD_OFF_UNANSWERED: "Stop messaging {client}. {count} messages with no reply. Another one hurts more than it helps.",
-        PROMISE_OVERDUE: "You promised {client}: \"{text}\". That was {days} days ago. Do it today or tell them why.",
-        PROMISE_TODAY: "Today you owe {client}: \"{text}\".",
+        PROMISE_OVERDUE: "You promised {client}: {text}. That was {days} days ago. Do it today or tell them why.",
+        PROMISE_TODAY: "Today you owe {client}: {text}.",
         OUTCOME_MISSING: "Your call with {client} was due and you never told me what happened. Tell me now.",
         GOING_COLD: "{client} is a serious buyer and hasn't heard from you in {days} days. It's your turn. Call them.",
         CALL_TODAY: "{time}: call {client}.",
         MISSING_INFO: "I still don't know {client}'s {field}. Ask them.",
       },
       wants: "They want {parts}.",
-      bringUp: "Bring up: \"{text}\".",
+      bringUp: "Bring up: {text}.",
       fields: { budget: "budget", purpose: "goal (home or investment)", area: "area", unit: "unit type", payment: "payment method" },
       parts: {
         budget: "a budget of {v}",

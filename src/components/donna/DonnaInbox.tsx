@@ -8,6 +8,7 @@ import { ClientMemoryPanel } from "./ClientMemoryPanel";
 import { DonnaSyncPanel } from "./DonnaSyncPanel";
 import { DraftCard } from "./DraftCard";
 import { FeedbackProvider } from "./Feedback";
+import { MorningBrief } from "./MorningBrief";
 import { TodayPanel } from "./TodayPanel";
 import { useDonna } from "./DonnaProvider";
 import { BUTTON } from "./ui";
@@ -38,6 +39,8 @@ export function DonnaInbox() {
             {copy.noExecution}
           </p>
         </header>
+
+        {showLists ? <MorningBrief /> : null}
 
         <Link href="/app-studio/donna/council" className="block rounded-xl border border-amber-700/50 bg-amber-950/20 p-4 text-sm font-semibold text-amber-100">Donna AI Council →</Link>
 

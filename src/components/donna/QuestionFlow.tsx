@@ -17,6 +17,7 @@ import { useDonna, type PreparedEvent } from "./DonnaProvider";
 import { useFeedback } from "./Feedback";
 import { BUTTON, FIELD, PRIMARY } from "./ui";
 import { VoiceButton } from "./VoiceButton";
+import { VoiceReviewPanel } from "./VoiceReviewPanel";
 
 type Mode = "idle" | "snooze" | "cancel" | OutcomeKind;
 type Step = 0 | 1 | 2;
@@ -258,6 +259,15 @@ export function QuestionFlow({ question }: { question: OutcomeQuestion }) {
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} dir="auto" rows={4} className={FIELD} />
               </label>
               <VoiceButton label={copy.form.noteShort} onText={(t) => setNote((cur) => appendSpoken(cur, t))} />
+              <VoiceReviewPanel
+                note={note}
+                callId={question.callId}
+                at={clockNow()}
+                onUseDate={(d) => {
+                  setNextKind("INTERNAL_FOLLOW_UP");
+                  setDate(d);
+                }}
+              />
             </div>
           ) : null}
 

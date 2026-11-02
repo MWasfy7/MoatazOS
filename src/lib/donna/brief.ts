@@ -36,6 +36,18 @@ export interface ClientPromise {
  */
 export type HoldReason = "ASKED_FOR_SPACE" | "UNANSWERED";
 
+export type ToldTopic = "PRICE" | "DOWN_PAYMENT" | "DELIVERY" | "INSTALLMENT_YEARS";
+
+/** Something the operator told the client. Donna checks the next thing they say against it. */
+export interface ToldFact {
+  readonly topic: ToldTopic;
+  /** Comparable value: EGP for a price, percent (or EGP) for a down payment, a year, a count of years. */
+  readonly value: number;
+  readonly unit: "EGP" | "PERCENT" | "YEAR" | "YEARS";
+  /** `YYYY-MM-DD` it was said. */
+  readonly on: string;
+}
+
 export interface ClientProfile {
   readonly clientId: string;
   readonly wants: ClientWants;
@@ -51,6 +63,8 @@ export interface ClientProfile {
   readonly askedForSpace: boolean;
   /** The operator marked this as a serious buyer. */
   readonly hot: boolean;
+  /** What the operator already told this client (prices, dates), oldest first. */
+  readonly told?: readonly ToldFact[];
 }
 
 export type BriefLine =
@@ -75,7 +89,7 @@ export const COLD_AFTER_DAYS = 5;
 export const UNANSWERED_LIMIT = 2;
 
 const DAY_MS = 86_400_000;
-const daysBetween = (fromDate: string, toDate: string) =>
+export const daysBetween = (fromDate: string, toDate: string) =>
   Math.round((parseInstant(`${toDate}T00:00:00Z`) - parseInstant(`${fromDate}T00:00:00Z`)) / DAY_MS);
 
 export function holdReason(profile: ClientProfile): HoldReason | null {
@@ -165,6 +179,11 @@ export function createDemoProfiles(now: string): readonly ClientProfile[] {
       unansweredMessages: 0,
       askedForSpace: false,
       hot: true,
+      told: [
+        { topic: "PRICE", value: 4_500_000, unit: "EGP", on: date(-9) },
+        { topic: "DOWN_PAYMENT", value: 10, unit: "PERCENT", on: date(-9) },
+        { topic: "DELIVERY", value: 2028, unit: "YEAR", on: date(-9) },
+      ],
     },
     {
       clientId: "cl-beta",

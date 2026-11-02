@@ -7,6 +7,9 @@ export * from "./today";
 export * from "./draft";
 export * from "./voiceDraft";
 export * from "./brief";
+export * from "./speech";
+export * from "./book";
+export * from "./mind";
 export * from "./memory";
 export * from "./aiStatus";
 

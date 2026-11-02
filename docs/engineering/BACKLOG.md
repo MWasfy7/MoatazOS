@@ -303,6 +303,27 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
      discarded across sign-out, account change and unmount. **Done locally (mock).**
 - **Not done:** hosted verification, deployment, Africa/Cairo quiet hours (DON-04), offline queue, voice, real data.
 
+### DON-03 Voice capture with a reviewable transcript — `IN_REVIEW`
+- **Merge:** `owner` (touches `src/`, adds a user-facing surface; never agent-eligible)
+- **Authorization:** owner-directed in a live session on 2026-11-02 ("Approve DON-03"). Covers the
+  pure draft module, the review panel, tests, branch and draft PR only. No merge, deploy, paid
+  service, speech provider, network call from `src/`, or real client data.
+- **Goal / value:** what the operator dictates or types is checked before it is saved: do-not-contact
+  language stops everything, a spoken note never creates a client appointment, and the operator
+  confirms by pressing Save outcome.
+- **Done (PR #29, draft, base `feat/donna-ai-council-mvp`):** `src/lib/donna/voiceDraft.ts`
+  (pure; precedence invalid > restraint > no evidence > unknown outcome > internal follow-up),
+  `VoiceReviewPanel` in the outcome flow (EN/AR, RTL), 12 + 5 unit tests, an e2e spec on both
+  projects. Verified locally: typecheck, lint, build, 387 unit tests, Playwright 30/30 per project
+  (mobile-arabic on local WebKit, not CI).
+- **Not done / blocked:**
+  - A connection to a speech service. A local Whisper process would need a network call from `src/`,
+    which invariant 8 forbids without an owner-approved exception that names the file and the host.
+  - Accuracy. The Egyptian-Arabic prototype scored strict mean WER 37.3% against the accepted 25% bar
+    and 94% key tokens against 95% (20 scored clips, one speaker, synthetic). Restraint 4/4 and
+    silence 5/5 passed. It stays a synthetic-data prototype until a second speaker and unseen clips pass.
+  - Real-device (iPhone) microphone check.
+
 ## 3. Blocked
 
 ### ECH-02 Make the NLF-50 harness hermetic (rework #11) — `BLOCKED` on OD-3, ECH-01
@@ -355,6 +376,5 @@ in compact form. Before approval, refine it to the SOS-01 level of detail.
 | ECH-10 | ECHO | Durable session memory for in-app ECHO | Memory-only → explicit export/import, then a persistence ADR | ECH-03 | Restart-safe without browser storage until approved | Invariant 8 (persistence) |
 | ECH-11 | ECHO | Routing reliability: NLF-50 pass rate tracked per build | Uses ECH-02 scorecard | ECH-02 | Trend table in the PR | Teaching to the test |
 | ECH-12 | ECHO | Tool orchestration design (ADR only) | Permission model, proposal → approval → execution separation | ECH-03, MOS-10 | Owner-approved ADR | External side effects |
-| DON-03 | Donna | Voice capture with reviewable transcript | Tap to speak, review, confirm; EN, Egyptian Arabic and Franco tests; text fallback | DON-02 | Transcript and extracted facts reviewable; unclear client identity not guessed; real-device check | Provider and recurring cost named before paid use |
 | DON-04 | Donna | Closed-app reminders | Server scheduler and supported notification delivery; quiet hours in the Africa/Cairo time zone with DST handling (DON-01 uses a fixed UTC+2 demo offset); batching | DON-02 | Distinguish scheduled, provider-accepted, device-received, acknowledged; verified on the owner's actual iPhone | Outbound delivery; mock delivery must be labelled mocked |
 | DON-05 | Donna | Connect the prepared SalesOS action card | Opt-out blocks outreach but not record keeping; nothing is sent automatically | DON-01, SOS-10 | Restraint wins; tests in EN/AR | Invariants 1 and 2 |

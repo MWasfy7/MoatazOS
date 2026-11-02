@@ -141,6 +141,20 @@ export const en = {
       dateTime: "Appointment date and time",
       clientConfirmed: "The client explicitly confirmed this time",
     },
+    voiceReview: {
+      title: "Check before you save",
+      note: "A suggestion only. Nothing is saved until you press Save outcome.",
+      verdict: {
+        NO_ACTION: "Stop: the client asked not to be contacted. Record it and do not follow up.",
+        INSUFFICIENT_EVIDENCE: "Nothing to check yet. Say or type what happened.",
+        REJECT_DRAFT: "This suggestion is not valid and was discarded.",
+        ASK_OPERATOR_OUTCOME: "Your notes do not say how the call went. Choose the outcome yourself.",
+        PROPOSE_INTERNAL_FOLLOW_UP: "Your notes name a follow-up date. You can use it as your own reminder.",
+      },
+      suggestedDate: "Suggested reminder date",
+      useDate: "Use this date",
+      appointmentNever: "A spoken note never confirms a client appointment. Confirm that yourself.",
+    },
     voice: {
       start: "Speak",
       stop: "Stop listening",

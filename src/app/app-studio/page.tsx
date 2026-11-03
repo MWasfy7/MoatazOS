@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { StudioHome } from "@/components/app-studio/StudioHome";
 
 export default function AppStudioIndexPage() {
-  redirect("/app-studio/salesos");
+  return <StudioHome />;
 }

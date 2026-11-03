@@ -26,6 +26,44 @@
   animation: donna-pop 0.18s ease-out both;
 }
 
+/* App Studio home. One ground, one ink, one accent (Donna's amber); red only for restraint. */
+.studio {
+  --studio-ground: #0c0b0a;
+  --studio-surface: #161412;
+  --studio-raised: #24211d;
+  --studio-raised-hover: #2f2b26;
+  --studio-ink: #f5f0e8;
+  --studio-ink-soft: #cfc7ba;
+  --studio-ink-faint: #9a9185;
+  --studio-accent: #f0b245;
+  --studio-accent-hover: #f6c369;
+  --studio-stop: #f87171;
+  --studio-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+.studio ::selection {
+  background: var(--studio-accent);
+  color: var(--studio-ground);
+}
+.studio :focus-visible {
+  outline-color: var(--studio-accent);
+}
+.studio-press {
+  transition: transform 160ms var(--studio-ease-out), background-color 160ms ease;
+}
+.studio-press:active {
+  transform: scale(0.97);
+}
+@keyframes studio-rise {
+  from { opacity: 0; transform: translateY(14px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.studio-rise {
+  animation: studio-rise 520ms var(--studio-ease-out) both;
+}
+.studio-delay-1 { animation-delay: 70ms; }
+.studio-delay-2 { animation-delay: 140ms; }
+.studio-delay-3 { animation-delay: 210ms; }
+
 /* Arabic letters join up; letter-spacing pulls words apart into single letters. */
 :lang(ar)[class*="tracking-"] {
   letter-spacing: normal;

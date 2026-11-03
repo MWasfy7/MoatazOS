@@ -9,6 +9,8 @@ import { test, expect } from "@playwright/test";
 test.describe("SalesOS Command Center click-through", () => {
   test("opens SalesOS and shows the opportunity list", async ({ page }) => {
     await page.goto("/");
+    await expect(page).toHaveURL(/app-studio$/);
+    await page.getByRole("link", { name: "Open SalesOS" }).click();
     await expect(page).toHaveURL(/app-studio\/salesos/);
     await expect(page.getByRole("heading", { name: /Command Center/i })).toBeVisible();
   });

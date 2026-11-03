@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import { Sidebar } from "@/components/app-studio/Sidebar";
 import { LocaleSwitch } from "@/components/app-studio/LocaleSwitch";
@@ -16,9 +17,9 @@ export default function AppStudioLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="border-b border-neutral-900 md:w-60 md:shrink-0 md:border-b-0 md:border-e">
         <div className="flex items-center justify-between px-4 py-4">
-          <span className="text-sm font-bold uppercase tracking-widest text-neutral-400">
+          <Link href="/app-studio" className="text-sm font-bold uppercase tracking-widest text-neutral-400 hover:text-neutral-100">
             {dict.appStudio.title}
-          </span>
+          </Link>
         </div>
         <Sidebar />
       </aside>

@@ -195,7 +195,7 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
 - **Risks:** none beyond scope creep. Review only; fixes become tasks.
 - **Done:** docs-only draft PR to `main`.
 
-### SOS-03 Versioned, safer prompt-evaluation lexicon (supersedes #14) — `APPROVED`
+### SOS-03 Versioned, safer prompt-evaluation lexicon (supersedes #14) — `IN_REVIEW`
 - **Merge:** `owner`
 - **Goal / value:** Keep #14's Egypt/GCC evaluation set while preserving
   provenance and avoiding false objection and requirement signals.

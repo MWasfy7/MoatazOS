@@ -65,7 +65,7 @@ All Donna work sits on unmerged, stacked branches, 24 commits ahead of `main`. B
 | Talk screen | Incoming call; canvas orb whose colour follows her mood; radar of the whole book; voice and text; EN/AR per turn; dossier, brief and proposal cards | `src/components/donna/talk/*`, route `/app-studio/donna/talk` |
 | Voice | Browser speech only: one utterance per sentence, a female voice in the reply language, a written note when no voice exists | `talk/useDonnaVoice.ts` |
 | State | Client profiles live in `DonnaProvider` memory, shared by the brief and Talk; a reload resets them | `src/components/donna/DonnaProvider.tsx` |
-| Store (DON-02) | Supabase adapter for call events only, not profiles; off by default; hosted acceptance not done | `src/lib/donna/store.ts`, `src/lib/donna/remote/*` |
+| Store (DON-02) | Supabase adapter for call events only, not profiles; off by default. Its live test passed 14/14 against the owner's synthetic Supabase project on 2026-10-31 (`docs/engineering/runs/2026-10-31-DON-02-next-step.md`) | `src/lib/donna/store.ts`, `src/lib/donna/remote/*` |
 | AI status | Templates only; every model shows "not connected"; cost cap $0; manual AI council (the owner pastes four models' answers to a synthetic case) | `src/lib/donna/aiStatus.ts`, `council.ts` |
 | Copy | Every string sits under `donna.*` / `donna.talk.*` in `src/lib/i18n/en.ts` and `ar.ts`; the Arabic is Egyptian colloquial | |
 | Install | Manifest `start_url` is the Talk screen; shortcuts to Talk and the inbox | `src/app/manifest.ts` |
@@ -95,7 +95,10 @@ All Donna work sits on unmerged, stacked branches, 24 commits ahead of `main`. B
   1. Run `npx next dev -H 0.0.0.0 --port 3200`.
   2. Open `http://<pc-ip>:3200/app-studio/donna/talk` on the phone.
 
-  This works at home only; hosting is an owner decision.
+  This works at home only; hosting is an owner decision. The address is plain http, so the phone has no
+  clipboard there (Copy buttons fail) and very likely no microphone; her voice and typing still work.
+  Testing listening and copying on the iPhone needs an https address. Safari's speech recognition
+  reportedly also needs Siri turned on.
 
 ## Gotchas already paid for
 
@@ -115,7 +118,8 @@ All Donna work sits on unmerged, stacked branches, 24 commits ahead of `main`. B
 
 - A real iPhone: Safari speech recognition in Egyptian Arabic, which voices exist, and home-screen install.
 - A real microphone end to end, and spoken output on a device. Only the "Speaking" state was seen in a browser.
-- DON-02 against a hosted database (needs owner setup).
+- The DON-02 sign-up allowlist proof (acceptance item 4) and the by-hand repeat on the owner's phone and
+  laptop. The live test (item 3) passed on 2026-10-31.
 - Anything with real client data. This is forbidden until gate G6.
 
 ## Outside this repository (owner's PC only)
@@ -126,12 +130,11 @@ All Donna work sits on unmerged, stacked branches, 24 commits ahead of `main`. B
   - Accuracy so far: strict WER 37.3%, against the owner-accepted bar of 25%.
   - Not wired in: that needs an approved task and an invariant 8 exception.
 - **LangGraph council prototype:** `%USERPROFILE%\donna-council-proto`.
-- **`feat/follow-up-core`:** the second engine described in the next section.
 
 ## A second engine to converge with
 
-`feat/follow-up-core` has 3 commits dated 2026-09-22. It is **only on the owner's PC, not on GitHub**, and
-it sits on an old `main`. It holds two modules.
+`feat/follow-up-core` (`5c04c22`) has 3 commits dated 2026-09-22. It has been on GitHub since 2026-11-03,
+with no PR, and it sits on an old `main`. It holds two modules.
 
 `src/lib/revenueCore`:
 - Stable customer ids that keep their phone history.
@@ -202,7 +205,7 @@ real work.
 |---|---|---|---|---|
 | 1 | Trusted core | A private place where real clients, the AI model, notifications and connections can live safely | **Missing.** The repo is public, and `src/` has no network, storage or real data by design | Owner decision: a private core (a separate private repo or service, with this app as its face), or wider exceptions in the public repo. Write an ADR first |
 | 2 | Senses | She finds out without being told: WhatsApp chats, call log, calendar, his Excel sheet, developer price sheets | **Partial.** Typed or spoken debriefs in the app. SalesOS already reads WhatsApp exports and CRM files, but Donna doesn't use it yet | Pasting a chat into the app can be built now (DON-09). Forwarding, call logs and calendars need layer 1 |
-| 3 | Lasting memory | The same memory on phone and computer; every fact keeps its source and date; old facts are flagged as old | **Partial.** Memory lasts only for the open tab; DON-02 stores call events only | DON-08 now. Lasting profiles need DON-02 hosted acceptance or layer 1 |
+| 3 | Lasting memory | The same memory on phone and computer; every fact keeps its source and date; old facts are flagged as old | **Partial.** Memory lasts only for the open tab; DON-02 stores call events only | DON-08 now. Lasting profiles need an approved change to the DON-02 tables, or layer 1 |
 | 4 | Market knowledge | Projects, units, prices, payment plans, delivery dates and offers with an expiry; which units fit which client; a truth check against the real price list | **Missing.** The truth check compares only with what he told the client before | A synthetic price book now (DON-10). Real price sheets after G6 |
 | 5 | Language brain | Free conversation in everyday Egyptian Arabic: she understands anything and answers naturally | **Missing.** She knows a fixed set of requests; anything else gets "Not my department". ECHO's in-app runtime understands more phrasings (including Franco-Arabic) but isn't connected to her | Owner decision: which model and host, what data leaves the device, a cost cap, and an invariant 8 exception for one file. Rule: the model only understands and phrases; facts still come only from her memory |
 | 6 | Initiative | She reaches him with the app closed: morning brief, before a viewing, after a call, when he is about to slip | **Partial.** She speaks first only when the app is opened | DON-04 (push notifications and a scheduler) or a real phone call. Needs hosting and layer 1 |
@@ -225,8 +228,9 @@ needs no owner decision (DON-09). The full version grows as layers 1, 5 and 7 ar
 `src/lib/donna/{brief,book,mind}.ts`.
 
 - **DON-08: one client record.**
-  - **First:** the owner pushes `feat/follow-up-core`.
-  - **Work:** rebase `revenueCore` and `followUp` onto the Donna stack. Map or replace `ClientProfile`:
+  - **Start from:** `feat/follow-up-core` (`5c04c22`), on GitHub since 2026-11-03.
+  - **Work:** cherry-pick `revenueCore` and `followUp` onto a new DON-08 branch cut from the Donna stack,
+    and leave `feat/follow-up-core` itself unchanged. Map or replace `ClientProfile`:
     `pickCalls` uses `rankDailyQueue`, holds become contact restrictions, promises become commitments.
     Do it together with MOS-01 (shared contracts): SalesOS's `NormalizedSalesEvent` and revenueCore's
     `Interaction` describe the same events, so keep one.
@@ -269,7 +273,8 @@ needs no owner decision (DON-09). The full version grows as layers 1, 5 and 7 ar
 1. **Trusted core:** where real data, the model and connections live. Recommended: a private core, with
    this public app as its face. Write an ADR first.
 2. **The brain:** which model, local or hosted, what client data may leave the device, and a monthly cost cap.
-3. **Hosting,** so she works away from home. This is an open item in DON-06 and DON-07.
+3. **Hosting,** so she works away from home and gets an https address, which the phone needs for the
+   microphone and the Copy button. This is an open item in DON-06 and DON-07.
 4. **Reaching him:** push notifications (DON-04) or a real phone call.
 5. **Real data:** when gate G6 is passed.
 6. **Sending:** when invariant 1 may change, one stage at a time.

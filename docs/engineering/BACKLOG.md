@@ -291,7 +291,9 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   3. **Live, against a real hosted project (blocked on owner setup):** save an outcome, reload, a second
      authenticated browser context shows the same record; retry and conflicting writes create no
      duplicate outcome; a different account cannot access the records; sign-up is refused;
-     then repeat by hand on the owner's phone and laptop.
+     then repeat by hand on the owner's phone and laptop. **Done 2026-10-31** at `e29498e` on the owner's
+     synthetic project: `npm run test:donna-live` 14 passed, 0 failed, including a 390px phone viewport
+     (`runs/2026-10-31-DON-02-next-step.md`). The by-hand repeat on the phone and laptop is not recorded.
   4. **Hosted allowlist proof (blocked on owner setup):** `supabase/tests/hosted_probe.sql` reports `OVERALL PASS`
      in the synthetic project (fires the trigger directly), and optionally `npm run test:donna-live-trigger`, which
      records API observations (allow-listed control succeeds, unlisted refused, no account; read over raw HTTP) and
@@ -301,7 +303,8 @@ Change a task's status to `APPROVED` to let the nightly routine pick it.
   5. Retry safety (repair of review `88c1a07`): a retry re-sends the frozen request (id, `at`, `until`); an
      acknowledged write whose reload fails is reported as "stored, not yet shown" with recovery; loads are
      discarded across sign-out, account change and unmount. **Done locally (mock).**
-- **Not done:** hosted verification, deployment, Africa/Cairo quiet hours (DON-04), offline queue, voice, real data.
+- **Not done:** the hosted allowlist proof (item 4) and the by-hand phone and laptop repeat are not recorded;
+  deployment, Africa/Cairo quiet hours (DON-04), offline queue, voice, real data.
 
 ### DON-03 Voice capture with a reviewable transcript — `IN_REVIEW`
 - **Merge:** `owner` (touches `src/`, adds a user-facing surface; never agent-eligible)

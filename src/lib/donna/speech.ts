@@ -326,6 +326,12 @@ const FEMALE_VOICE: Readonly<Record<"en" | "ar", RegExp>> = {
   ar: /salma|hoda|zariyah|laila|amina|mariam|female/i,
 };
 
+/** Voices closest to Donna's character (warm, low, quick, sure of herself), best first. An original voice, not anyone's copy. */
+const DONNA_CHARACTER: Readonly<Record<"en" | "ar", readonly RegExp[]>> = {
+  en: [/\bava\b/i, /\bemma\b/i, /\bjenny\b/i, /\baria\b/i],
+  ar: [/\bsalma\b/i, /\bzariyah\b/i],
+};
+
 /** Donna's voice: a female voice in the reply language, Egyptian Arabic first, natural voices preferred. */
 export function pickVoice<V extends VoiceLike>(voices: readonly V[], locale: "en" | "ar"): V | null {
   const region = locale === "ar" ? ["ar-eg", "ar-sa", "ar"] : ["en-us", "en-gb", "en"];
@@ -333,7 +339,10 @@ export function pickVoice<V extends VoiceLike>(voices: readonly V[], locale: "en
     const lang = v.lang.toLowerCase().replace("_", "-");
     if (!lang.startsWith(locale)) return -1;
     const regionRank = region.findIndex((r) => lang.startsWith(r));
-    return (FEMALE_VOICE[locale].test(v.name) ? 10 : 0) + (regionRank >= 0 ? 6 - regionRank * 2 : 0) + (/natural|neural|online|premium|enhanced/i.test(v.name) ? 3 : 0);
+    // A natural (neural) voice matters more than the region, but never more than her being a woman.
+    const quality = /natural|neural|online|premium|enhanced/i.test(v.name) ? 8 : 0;
+    const character = DONNA_CHARACTER[locale].findIndex((pattern) => pattern.test(v.name));
+    return (FEMALE_VOICE[locale].test(v.name) ? 10 : 0) + (regionRank >= 0 ? 6 - regionRank * 2 : 0) + quality + (character >= 0 ? 4 - character : 0);
   };
   let best: V | null = null;
   let bestScore = -1;

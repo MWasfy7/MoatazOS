@@ -60,6 +60,36 @@
 .studio-rise {
   animation: studio-rise 520ms var(--studio-ease-out) both;
 }
+/* Her mood tints the whole stage; slow on purpose, so it reads as the room, not a flash. */
+.studio-stage {
+  transition: background-color 900ms var(--studio-ease-out);
+}
+/* The incoming call: a ring that keeps pulsing outward until you answer. */
+.studio-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: var(--studio-accent);
+  animation: studio-ring 1.6s var(--studio-ease-out) infinite;
+  z-index: -1;
+}
+@keyframes studio-ring {
+  from { transform: scale(1); opacity: 0.45; }
+  to { transform: scale(1.5, 1.9); opacity: 0; }
+}
+.studio-tilt {
+  transition: transform 500ms var(--studio-ease-out);
+  will-change: transform;
+}
+/* Sections below the fold rise in once as they arrive. "pending" is set only by script. */
+.studio-reveal {
+  transition: opacity 700ms var(--studio-ease-out), transform 700ms var(--studio-ease-out);
+}
+.studio-reveal[data-reveal="pending"] {
+  opacity: 0;
+  transform: translateY(32px);
+}
 .studio-delay-1 { animation-delay: 70ms; }
 .studio-delay-2 { animation-delay: 140ms; }
 .studio-delay-3 { animation-delay: 210ms; }

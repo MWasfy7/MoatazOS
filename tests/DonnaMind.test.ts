@@ -74,6 +74,15 @@ describe("Donna's ears: names, numbers and dates in English and Egyptian Arabic"
     expect(pickVoice(voices, "en")?.name).toMatch(/Aria/);
     expect(pickVoice(voices, "ar")?.name).toMatch(/Salma/);
     expect(pickVoice([{ name: "Microsoft David", lang: "en-US" }], "ar")).toBeNull();
+    // A natural voice beats a robotic one; her character voice wins among naturals; never a man's.
+    const many = [
+      { name: "Samantha", lang: "en-US" },
+      { name: "Microsoft Guy Online (Natural)", lang: "en-US" },
+      { name: "Microsoft Jenny Online (Natural)", lang: "en-US" },
+      { name: "Microsoft Ava Online (Natural)", lang: "en-US" },
+    ];
+    expect(pickVoice(many, "en")?.name).toMatch(/Ava/);
+    expect(pickVoice(many.slice(0, 2), "en")?.name).toBe("Samantha");
   });
 });
 

@@ -96,7 +96,9 @@ export function useDonnaVoice() {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang === "ar" ? "ar-EG" : "en-US";
       if (voice) utterance.voice = voice;
-      utterance.rate = 1.02;
+      // Quick and a touch low: sure of herself, never sing-song.
+      utterance.rate = 1.06;
+      utterance.pitch = 0.94;
       utterance.onstart = () => {
         pulse.current += 2;
         if (gen === generation.current) setLine(i);

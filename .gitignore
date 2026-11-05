@@ -9,3 +9,7 @@ coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo
+
+graphify-out/
+
+graph.json
